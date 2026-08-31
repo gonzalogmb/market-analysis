@@ -10,6 +10,7 @@ from indicators import add_indicators
 sys.stdout.reconfigure(encoding="utf-8")
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 TICKERS = {
@@ -51,6 +52,36 @@ def chart_to_dataframe(result: dict) -> pd.DataFrame:
     if tz:
         df.index = df.index.tz_convert(tz)
     return df.dropna(subset=["Close"])
+
+
+def search_symbols(query: str, count: int = 8) -> list[dict]:
+    """Busca instrumentos válidos en Yahoo Finance por nombre o ticker (autocompletado)."""
+    query = query.strip()
+    if len(query) < 2:
+        return []
+
+    params = {"q": query, "quotesCount": count, "newsCount": 0}
+    try:
+        response = requests.get(SEARCH_URL, params=params, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        return []
+
+    results = []
+    for quote in payload.get("quotes", []):
+        symbol = quote.get("symbol")
+        if not symbol:
+            continue
+        results.append(
+            {
+                "symbol": symbol,
+                "name": quote.get("shortname") or quote.get("longname") or symbol,
+                "exchange": quote.get("exchange", ""),
+                "type": quote.get("quoteType", ""),
+            }
+        )
+    return results
 
 
 def fetch_history(

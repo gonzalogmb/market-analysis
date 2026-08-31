@@ -26,10 +26,19 @@ Herramienta en Python para consultar datos de mercado (índices y fondos de inve
 - [`main.py`](main.py) — punto de entrada: llama a `fetch_yahoo_data`, `indicators` y `visualization`, imprime resumen, histórico con indicadores, estadísticas anualizadas y correlaciones, genera los gráficos, y opcionalmente exporta datos a CSV/Excel.
   - Sin argumentos: lanza un menú interactivo (`prompt_tickers_menu` / `prompt_manual_tickers`) para elegir los índices por defecto, añadir otros manualmente, o usar solo los manuales; también pregunta si generar los gráficos.
   - Con argumentos: modo CLI vía `argparse`, pensado para scripting/automatización.
+- [`app.py`](app.py) — UI web interactiva con [Streamlit](https://streamlit.io/): permite seleccionar instrumentos (por defecto y/o manuales), rango e intervalo desde la barra lateral, y muestra el resumen, las estadísticas, el heatmap de correlación y los gráficos de precio/RSI de cada instrumento directamente en el navegador.
 
 ## Uso
 
-### Modo interactivo
+### UI web (Streamlit)
+
+```bash
+streamlit run app.py
+```
+
+Se abre en el navegador (`http://localhost:8501`). En la barra lateral eliges instrumentos por defecto, añades otros manuales (`Nombre=TICKER`, uno por línea), el rango/intervalo, y opcionalmente si guardar los PNGs en `charts/`. Al pulsar **Generar** se descargan los datos y se muestran el resumen, las estadísticas anualizadas, la correlación y un gráfico expandible por instrumento.
+
+### Modo interactivo (terminal)
 
 Si lanzas `main.py` sin argumentos, se abre un menú que pregunta si quieres usar los índices por defecto, añadir otro(s) a los de por defecto, o usar solo los que introduzcas tú (rango fijo de 6 meses):
 
@@ -85,7 +94,7 @@ El histórico OHLCV (con `SMA20`, `SMA50`, `EMA20`, `RSI14`, `Volatilidad %`) **
 ## Requisitos
 
 ```bash
-pip install pandas numpy requests openpyxl matplotlib
+pip install pandas numpy requests openpyxl matplotlib streamlit
 ```
 
-`openpyxl` solo hace falta si se exporta a `.xlsx`.
+`openpyxl` solo hace falta si se exporta a `.xlsx`. `streamlit` solo hace falta para la UI web (`app.py`).
