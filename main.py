@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from fetch_yahoo_data import TICKERS, combine_history, fetch_history, fetch_summary
+from indicators import correlation_matrix, stats_summary
 
 
 def parse_tickers(pairs: list[str]) -> dict[str, str]:
@@ -33,7 +34,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="No incluir los tickers por defecto, usar solo los pasados con --ticker.",
     )
-    parser.add_argument("--range", dest="range_", default="1mo", help="Rango histórico (5d, 1mo, 3mo, 1y, ...). Default: 1mo")
+    parser.add_argument(
+        "--range",
+        dest="range_",
+        default="6mo",
+        help="Rango histórico (5d, 1mo, 3mo, 6mo, 1y, ...). Default: 6mo (recomendado para que SMA50/RSI tengan datos suficientes)",
+    )
     parser.add_argument("--interval", default="1d", help="Intervalo de velas (1d, 1wk, 1mo, ...). Default: 1d")
     parser.add_argument("--output", type=Path, help="Ruta de salida para el histórico combinado (.csv o .xlsx)")
     parser.add_argument("--summary-output", type=Path, help="Ruta de salida para el resumen (.csv o .xlsx)")
@@ -88,7 +94,7 @@ def save_dataframe(df: pd.DataFrame, path: Path) -> None:
 def main() -> None:
     if len(sys.argv) == 1:
         tickers = prompt_tickers_menu()
-        range_, interval = "1mo", "1d"
+        range_, interval = "6mo", "1d"
         output = summary_output = None
     else:
         args = parse_args()
@@ -110,10 +116,17 @@ def main() -> None:
 
     histories = fetch_history(tickers, range_=range_, interval=interval)
     combined = combine_history(histories)
-    print(f"\n=== Histórico combinado ({range_}) ===")
+    print(f"\n=== Histórico combinado ({range_}), con SMA20/50, EMA20, RSI14 y volatilidad móvil ===")
     print(combined)
     if output:
         save_dataframe(combined, output)
+
+    print("\n=== Estadísticas anualizadas ===")
+    print(stats_summary(histories))
+
+    if len(histories) > 1:
+        print("\n=== Correlación entre retornos diarios ===")
+        print(correlation_matrix(histories).round(2))
 
 
 if __name__ == "__main__":

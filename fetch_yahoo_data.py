@@ -5,6 +5,8 @@ import sys
 import pandas as pd
 import requests
 
+from indicators import add_indicators
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
@@ -51,11 +53,15 @@ def chart_to_dataframe(result: dict) -> pd.DataFrame:
     return df.dropna(subset=["Close"])
 
 
-def fetch_history(tickers: dict[str, str], range_: str = "5d", interval: str = "1d") -> dict[str, pd.DataFrame]:
+def fetch_history(
+    tickers: dict[str, str], range_: str = "5d", interval: str = "1d", with_indicators: bool = True
+) -> dict[str, pd.DataFrame]:
     histories = {}
     for name, symbol in tickers.items():
         df = chart_to_dataframe(fetch_chart(symbol, range_, interval))
         df["Retorno %"] = df["Close"].pct_change() * 100
+        if with_indicators:
+            df = add_indicators(df)
         histories[name] = df
     return histories
 
