@@ -8,6 +8,7 @@ import pandas as pd
 
 from fetch_yahoo_data import TICKERS, combine_history, fetch_history, fetch_summary
 from indicators import correlation_matrix, stats_summary
+from visualization import save_charts
 
 
 def parse_tickers(pairs: list[str]) -> dict[str, str]:
@@ -43,6 +44,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--interval", default="1d", help="Intervalo de velas (1d, 1wk, 1mo, ...). Default: 1d")
     parser.add_argument("--output", type=Path, help="Ruta de salida para el histórico combinado (.csv o .xlsx)")
     parser.add_argument("--summary-output", type=Path, help="Ruta de salida para el resumen (.csv o .xlsx)")
+    parser.add_argument(
+        "--charts-dir", type=Path, default=Path("charts"), help="Carpeta donde guardar los gráficos PNG. Default: charts/"
+    )
+    parser.add_argument("--no-charts", action="store_true", help="No generar gráficos.")
     return parser.parse_args()
 
 
@@ -96,6 +101,8 @@ def main() -> None:
         tickers = prompt_tickers_menu()
         range_, interval = "6mo", "1d"
         output = summary_output = None
+        want_charts = (input("\n¿Generar gráficos en charts/? [S/n]: ").strip().lower() or "s") == "s"
+        charts_dir = Path("charts")
     else:
         args = parse_args()
         base = {} if args.no_defaults else TICKERS
@@ -104,6 +111,8 @@ def main() -> None:
             raise SystemExit("No hay tickers para consultar: usa --ticker o quita --no-defaults.")
         range_, interval = args.range_, args.interval
         output, summary_output = args.output, args.summary_output
+        want_charts = not args.no_charts
+        charts_dir = args.charts_dir
 
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", None)
@@ -115,18 +124,24 @@ def main() -> None:
         save_dataframe(summary, summary_output)
 
     histories = fetch_history(tickers, range_=range_, interval=interval)
-    combined = combine_history(histories)
-    print(f"\n=== Histórico combinado ({range_}), con SMA20/50, EMA20, RSI14 y volatilidad móvil ===")
-    print(combined)
     if output:
+        combined = combine_history(histories)
         save_dataframe(combined, output)
 
     print("\n=== Estadísticas anualizadas ===")
     print(stats_summary(histories))
 
+    corr = None
     if len(histories) > 1:
+        corr = correlation_matrix(histories)
         print("\n=== Correlación entre retornos diarios ===")
-        print(correlation_matrix(histories).round(2))
+        print(corr.round(2))
+
+    if want_charts:
+        saved = save_charts(histories, corr, charts_dir)
+        print(f"\n=== Gráficos guardados en {charts_dir}/ ===")
+        for path in saved:
+            print(f"  - {path}")
 
 
 if __name__ == "__main__":

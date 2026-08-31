@@ -1,6 +1,6 @@
 # market-analysis
 
-Herramienta en Python para consultar datos de mercado (índices y fondos de inversión) directamente desde la API pública de Yahoo Finance, sin depender de la librería `yfinance`, y analizarlos con `pandas` (indicadores técnicos, estadísticas anualizadas y correlaciones).
+Herramienta en Python para consultar datos de mercado (índices y fondos de inversión) directamente desde la API pública de Yahoo Finance, sin depender de la librería `yfinance`, y analizarlos con `pandas` (indicadores técnicos, estadísticas anualizadas, correlaciones y gráficos).
 
 ## Estructura
 
@@ -19,8 +19,12 @@ Herramienta en Python para consultar datos de mercado (índices y fondos de inve
   - `annualized_return(close)` / `annualized_volatility(close)` / `sharpe_ratio(close)` / `max_drawdown(close)`: métricas sobre todo el periodo descargado (retorno anualizado calculado de forma geométrica).
   - `stats_summary(histories)`: `DataFrame` con esas métricas para todos los instrumentos.
   - `correlation_matrix(histories)`: matriz de correlación entre los retornos diarios de los instrumentos, alineados por fecha.
-- [`main.py`](main.py) — punto de entrada: llama a `fetch_yahoo_data` e `indicators`, imprime resumen, histórico con indicadores, estadísticas anualizadas y correlaciones, y opcionalmente exporta a CSV/Excel.
-  - Sin argumentos: lanza un menú interactivo (`prompt_tickers_menu` / `prompt_manual_tickers`) para elegir los índices por defecto, añadir otros manualmente, o usar solo los manuales.
+- [`visualization.py`](visualization.py) — gráficos con `matplotlib` (backend no interactivo, guarda PNG):
+  - `plot_instrument(df, name)`: precio + SMA20/SMA50/EMA20 arriba, RSI14 abajo.
+  - `plot_correlation_heatmap(corr)`: mapa de calor de la matriz de correlación.
+  - `save_charts(histories, corr, output_dir)`: genera y guarda un PNG por instrumento + el heatmap de correlación, devuelve las rutas.
+- [`main.py`](main.py) — punto de entrada: llama a `fetch_yahoo_data`, `indicators` y `visualization`, imprime resumen, histórico con indicadores, estadísticas anualizadas y correlaciones, genera los gráficos, y opcionalmente exporta datos a CSV/Excel.
+  - Sin argumentos: lanza un menú interactivo (`prompt_tickers_menu` / `prompt_manual_tickers`) para elegir los índices por defecto, añadir otros manualmente, o usar solo los manuales; también pregunta si generar los gráficos.
   - Con argumentos: modo CLI vía `argparse`, pensado para scripting/automatización.
 
 ## Uso
@@ -52,18 +56,23 @@ python main.py --no-defaults --ticker "Oro=GC=F"
 python main.py --output out/historico.csv
 python main.py --output out/historico.xlsx
 python main.py --summary-output out/resumen.xlsx
+
+# Cambiar carpeta de gráficos, o desactivarlos
+python main.py --charts-dir mis_graficos
+python main.py --no-charts
 ```
 
 Ver `python main.py --help` para todas las opciones.
 
 ## Salida
 
-Cada ejecución muestra:
+Cada ejecución muestra por consola:
 
 1. **Resumen** — precio actual, variación %, máx/mín 52 semanas por instrumento.
-2. **Histórico combinado** — OHLCV + `Retorno %`, `SMA20`, `SMA50`, `EMA20`, `RSI14`, `Volatilidad %` por instrumento y fecha.
-3. **Estadísticas anualizadas** — retorno anualizado, volatilidad anualizada, ratio de Sharpe y máximo drawdown por instrumento, sobre todo el rango descargado.
-4. **Correlación entre retornos diarios** — matriz de correlación entre todos los instrumentos consultados (si hay más de uno).
+2. **Estadísticas anualizadas** — retorno anualizado, volatilidad anualizada, ratio de Sharpe y máximo drawdown por instrumento, sobre todo el rango descargado.
+3. **Correlación entre retornos diarios** — matriz de correlación entre todos los instrumentos consultados (si hay más de uno).
+
+El histórico OHLCV (con `SMA20`, `SMA50`, `EMA20`, `RSI14`, `Volatilidad %`) **no se imprime como tabla**: solo se ve en los **gráficos** — un PNG por instrumento (precio + medias móviles + RSI) y un heatmap de correlación, guardados en `charts/` por defecto — o, si usas `--output`, exportado a CSV/Excel.
 
 ## Instrumentos por defecto
 
@@ -76,7 +85,7 @@ Cada ejecución muestra:
 ## Requisitos
 
 ```bash
-pip install pandas numpy requests openpyxl
+pip install pandas numpy requests openpyxl matplotlib
 ```
 
 `openpyxl` solo hace falta si se exporta a `.xlsx`.
