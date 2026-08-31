@@ -106,11 +106,14 @@ else:
         st.subheader("Correlación entre retornos diarios")
         col1, col2 = st.columns([2, 1])
         with col1:
-            st.pyplot(plot_correlation_heatmap(result["corr"]))
+            st.pyplot(plot_correlation_heatmap(result["corr"]), use_container_width=False)
         with col2:
             st.dataframe(result["corr"].round(2), use_container_width=True)
 
     st.subheader("Gráficos por instrumento")
-    for name, df in result["histories"].items():
-        with st.expander(name, expanded=True):
-            st.pyplot(plot_instrument(df, name))
+    items = list(result["histories"].items())
+    for i in range(0, len(items), 2):
+        row = st.columns(2)
+        for col, (name, df) in zip(row, items[i : i + 2]):
+            with col:
+                st.pyplot(plot_instrument(df, name), use_container_width=True)
