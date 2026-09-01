@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Market Analysis</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem("market-analysis-theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+<button id="theme-toggle" class="theme-toggle" type="button" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌙</button>
+<div class="app">
+  <aside class="sidebar">
+    <h1 class="brand">📈 Market Analysis</h1>
+    <p class="subtitle">Yahoo Finance · indicadores · correlaciones</p>
+
+    <section class="side-section">
+      <h2>Instrumentos seleccionados</h2>
+      <ul id="ticker-list" class="ticker-list"></ul>
+    </section>
+
+    <hr />
+
+    <section class="side-section">
+      <h2>🔎 Buscar instrumento</h2>
+      <input id="search-input" type="text" placeholder="ej. Apple, oro, S&amp;P 500..." autocomplete="off" />
+      <div id="search-results" class="search-results" hidden></div>
+    </section>
+
+    <hr />
+
+    <section class="side-section">
+      <label for="range-select">Rango histórico</label>
+      <select id="range-select">
+        {% for r in ranges %}
+        <option value="{{ r }}" {% if r == '6mo' %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="interval-select">Intervalo</label>
+      <select id="interval-select">
+        {% for i in intervals %}
+        <option value="{{ i }}">{{ i }}</option>
+        {% endfor %}
+      </select>
+    </section>
+
+    <hr />
+
+    <button id="generate-btn" class="btn-primary">🚀 Generar</button>
+    <p id="status-msg" class="status-msg" hidden></p>
+  </aside>
+
+  <main class="content">
+    <div id="empty-state" class="empty-state">👈 Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</div>
+
+    <div id="results" class="results" hidden>
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="resumen">📋 Resumen</button>
+        <button class="tab-btn" data-tab="stats">📐 Estadísticas</button>
+        <button class="tab-btn" data-tab="corr">🔗 Correlación</button>
+        <button class="tab-btn" data-tab="charts">📊 Gráficos</button>
+      </nav>
+
+      <section id="tab-resumen" class="tab-panel active">
+        <div id="summary-cards" class="cards-grid"></div>
+      </section>
+
+      <section id="tab-stats" class="tab-panel">
+        <div class="table-wrap"><table id="stats-table"></table></div>
+      </section>
+
+      <section id="tab-corr" class="tab-panel">
+        <div class="corr-layout">
+          <div id="corr-heatmap" class="heatmap"></div>
+          <div class="table-wrap"><table id="corr-table"></table></div>
+        </div>
+      </section>
+
+      <section id="tab-charts" class="tab-panel">
+        <div id="charts-grid" class="charts-grid"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+  window.__DEFAULTS__ = {{ defaults | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

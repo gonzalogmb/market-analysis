@@ -97,19 +97,6 @@ def fetch_history(
     return histories
 
 
-def combine_history(histories: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    by_date = {}
-    for name, df in histories.items():
-        df = df.copy()
-        df.index = pd.to_datetime(df.index.date)
-        df.index.name = "Date"
-        by_date[name] = df
-
-    combined = pd.concat(by_date.values(), keys=by_date.keys(), axis=1)
-    combined.columns.names = ["Nombre", "Campo"]
-    return combined
-
-
 def fetch_summary(tickers: dict[str, str]) -> pd.DataFrame:
     rows = []
     for name, symbol in tickers.items():
