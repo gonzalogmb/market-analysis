@@ -441,4 +441,45 @@ function renderCharts(histories) {
   });
 }
 
+// ---------- Mayores subidas del día ----------
+
+async function loadTopGainers() {
+  const container = document.getElementById("top-gainers-list");
+  if (!container) return;
+  try {
+    const res = await fetch("/api/top-gainers?count=10");
+    const rows = await res.json();
+    renderTopGainers(rows);
+  } catch (err) {
+    container.innerHTML = '<p class="gainers-status">No se pudieron cargar las subidas del día.</p>';
+  }
+}
+
+function renderTopGainers(rows) {
+  const container = document.getElementById("top-gainers-list");
+  container.innerHTML = "";
+  if (!rows || !rows.length) {
+    container.innerHTML = '<p class="gainers-status">Sin datos disponibles ahora mismo.</p>';
+    return;
+  }
+  rows.forEach((row) => {
+    const card = document.createElement("div");
+    card.className = "gainer-card";
+    card.innerHTML = `
+      <div class="gainer-info">
+        <span class="gainer-symbol">${row.symbol}</span>
+        <span class="gainer-name" title="${row.name}">${row.name}</span>
+      </div>
+      <span class="gainer-change">▲ ${row.change_percent != null ? row.change_percent.toFixed(2) : "—"}%</span>
+      <button class="gainer-add-btn" type="button" title="Añadir a seleccionados">+</button>
+    `;
+    card.querySelector(".gainer-add-btn").addEventListener("click", () => {
+      state.selected[row.name] = row.symbol;
+      renderTickerList();
+    });
+    container.appendChild(card);
+  });
+}
+
 renderTickerList();
+loadTopGainers();

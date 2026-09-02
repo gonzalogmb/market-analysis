@@ -59,9 +59,18 @@
 
     <button id="generate-btn" class="btn-primary">🚀 Generar</button>
     <p id="status-msg" class="status-msg" hidden></p>
+
+    <p class="sidebar-footer">© gonzalogmb</p>
   </aside>
 
   <main class="content">
+    <section class="top-gainers">
+      <h2 class="section-title">🔥 Mayores subidas del día</h2>
+      <div id="top-gainers-list" class="gainers-grid">
+        <p class="gainers-status">Cargando...</p>
+      </div>
+    </section>
+
     <div id="empty-state" class="empty-state">👈 Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</div>
 
     <div id="results" class="results" hidden>

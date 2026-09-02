@@ -11,6 +11,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
+SCREENER_URL = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 TICKERS = {
@@ -82,6 +83,40 @@ def search_symbols(query: str, count: int = 8) -> list[dict]:
             }
         )
     return results
+
+
+def fetch_top_gainers(count: int = 10) -> list[dict]:
+    """Acciones que más suben en el día (screener 'Day Gainers' de Yahoo Finance)."""
+    params = {"count": max(count, 25), "scrIds": "day_gainers", "lang": "en-US", "region": "US"}
+    try:
+        response = requests.get(SCREENER_URL, params=params, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException:
+        return []
+
+    results = payload.get("finance", {}).get("result") or []
+    if not results:
+        return []
+
+    quotes = results[0].get("quotes", [])
+    quotes.sort(key=lambda q: q.get("regularMarketChangePercent") or 0, reverse=True)
+
+    top = []
+    for quote in quotes[:count]:
+        symbol = quote.get("symbol")
+        if not symbol:
+            continue
+        top.append(
+            {
+                "symbol": symbol,
+                "name": quote.get("shortName") or quote.get("longName") or symbol,
+                "price": quote.get("regularMarketPrice"),
+                "change_percent": quote.get("regularMarketChangePercent"),
+                "currency": quote.get("currency"),
+            }
+        )
+    return top
 
 
 def fetch_history(

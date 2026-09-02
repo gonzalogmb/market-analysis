@@ -93,6 +93,8 @@ body {
   width: 300px;
   flex-shrink: 0;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   border-right: 1px solid var(--border);
   padding: 15px 18px 24px;
@@ -202,8 +204,64 @@ label { display: block; font-weight: 600; font-size: 0.9em; margin: 0.4rem 0 0.2
 .status-msg.error { background: var(--error-bg); color: var(--critical); }
 .status-msg.success { background: var(--success-bg); color: var(--good); }
 
+.sidebar-footer {
+  margin: auto 0 0;
+  padding-top: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78em;
+}
+
 .content { flex: 1; min-width: 0; padding: 2rem 2.5rem; }
 .empty-state { color: var(--secondary); font-size: 1.05em; }
+
+.top-gainers { margin-bottom: 2rem; }
+.section-title { font-size: 1em; margin: 0 0 0.7rem; }
+
+.gainers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.7rem; }
+.gainers-status { color: var(--secondary); font-size: 0.9em; grid-column: 1 / -1; }
+
+.gainer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  box-shadow: 0 1px 3px var(--shadow);
+  transition: transform 0.15s ease;
+}
+.gainer-card:hover { transform: translateY(-2px); }
+
+.gainer-info { min-width: 0; }
+.gainer-symbol { display: block; font-weight: 700; font-size: 0.9em; }
+.gainer-name {
+  display: block;
+  font-size: 0.75em;
+  color: var(--secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gainer-change { color: var(--good); font-weight: 600; font-size: 0.85em; white-space: nowrap; }
+
+.gainer-add-btn {
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex-shrink: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95em;
+  line-height: 1;
+  transition: filter 0.15s ease;
+}
+.gainer-add-btn:hover { filter: brightness(1.1); }
 
 .tabs { display: flex; gap: 0.2rem; margin-bottom: 1.2rem; border-bottom: 1px solid var(--grid); }
 .tab-btn {

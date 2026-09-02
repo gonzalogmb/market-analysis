@@ -4,7 +4,7 @@ import math
 
 from flask import Flask, jsonify, render_template, request
 
-from fetch_yahoo_data import TICKERS, fetch_history, fetch_summary, search_symbols
+from fetch_yahoo_data import TICKERS, fetch_history, fetch_summary, fetch_top_gainers, search_symbols
 from indicators import correlation_matrix, stats_summary
 
 app = Flask(__name__)
@@ -45,6 +45,13 @@ def index():
 def api_search():
     query = request.args.get("q", "")
     return jsonify(search_symbols(query))
+
+
+@app.route("/api/top-gainers")
+def api_top_gainers():
+    count = request.args.get("count", 10, type=int)
+    gainers = fetch_top_gainers(count=count)
+    return jsonify([{k: _clean(v) for k, v in row.items()} for row in gainers])
 
 
 @app.route("/api/generate", methods=["POST"])
