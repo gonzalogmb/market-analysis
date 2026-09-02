@@ -18,36 +18,42 @@
 </script>
 </head>
 <body>
-<button id="theme-toggle" class="theme-toggle" type="button" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌙</button>
+<div class="top-controls">
+  <div class="lang-toggle" role="group" aria-label="Language selector">
+    <button id="lang-en" class="lang-btn" type="button" title="Switch to English" aria-label="English">🇺🇸</button>
+    <button id="lang-es" class="lang-btn" type="button" title="Cambiar a español" aria-label="Español">🇪🇸</button>
+  </div>
+  <button id="theme-toggle" class="theme-toggle" type="button" data-i18n-title="themeToggleTitle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌙</button>
+</div>
 <div class="app">
   <aside class="sidebar">
     <h1 class="brand">📈 Market Analysis</h1>
-    <p class="subtitle">Yahoo Finance · indicadores · correlaciones</p>
+    <p class="subtitle" data-i18n="subtitle">Yahoo Finance · indicadores · correlaciones</p>
 
     <section class="side-section">
-      <h2>Instrumentos seleccionados</h2>
+      <h2 data-i18n="selectedInstruments">Instrumentos seleccionados</h2>
       <ul id="ticker-list" class="ticker-list"></ul>
     </section>
 
     <hr />
 
     <section class="side-section">
-      <h2>🔎 Buscar instrumento</h2>
-      <input id="search-input" type="text" placeholder="ej. Apple, oro, S&amp;P 500..." autocomplete="off" />
+      <h2 data-i18n="searchInstrument">🔎 Buscar instrumento</h2>
+      <input id="search-input" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="ej. Apple, oro, S&amp;P 500..." autocomplete="off" />
       <div id="search-results" class="search-results" hidden></div>
     </section>
 
     <hr />
 
     <section class="side-section">
-      <label for="range-select">Rango histórico</label>
+      <label for="range-select" data-i18n="historicalRange">Rango histórico</label>
       <select id="range-select">
         {% for r in ranges %}
         <option value="{{ r }}" {% if r == '6mo' %}selected{% endif %}>{{ r }}</option>
         {% endfor %}
       </select>
 
-      <label for="interval-select">Intervalo</label>
+      <label for="interval-select" data-i18n="interval">Intervalo</label>
       <select id="interval-select">
         {% for i in intervals %}
         <option value="{{ i }}">{{ i }}</option>
@@ -57,7 +63,7 @@
 
     <hr />
 
-    <button id="generate-btn" class="btn-primary">🚀 Generar</button>
+    <button id="generate-btn" class="btn-primary" data-i18n="generate">🚀 Generar</button>
     <p id="status-msg" class="status-msg" hidden></p>
 
     <p class="sidebar-footer">© gonzalogmb</p>
@@ -65,20 +71,20 @@
 
   <main class="content">
     <section class="top-gainers">
-      <h2 class="section-title">🔥 Mayores subidas del día</h2>
+      <h2 class="section-title" data-i18n="topGainersTitle">🔥 Mayores subidas del día</h2>
       <div id="top-gainers-list" class="gainers-grid">
-        <p class="gainers-status">Cargando...</p>
+        <p class="gainers-status" data-i18n="loading">Cargando...</p>
       </div>
     </section>
 
-    <div id="empty-state" class="empty-state">👈 Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</div>
+    <div id="empty-state" class="empty-state" data-i18n-html="emptyStateHtml">👈 Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</div>
 
     <div id="results" class="results" hidden>
       <nav class="tabs">
-        <button class="tab-btn active" data-tab="resumen">📋 Resumen</button>
-        <button class="tab-btn" data-tab="stats">📐 Estadísticas</button>
-        <button class="tab-btn" data-tab="corr">🔗 Correlación</button>
-        <button class="tab-btn" data-tab="charts">📊 Gráficos</button>
+        <button class="tab-btn active" data-tab="resumen" data-i18n="tabResumen">📋 Resumen</button>
+        <button class="tab-btn" data-tab="stats" data-i18n="tabStats">📐 Estadísticas</button>
+        <button class="tab-btn" data-tab="corr" data-i18n="tabCorr">🔗 Correlación</button>
+        <button class="tab-btn" data-tab="charts" data-i18n="tabCharts">📊 Gráficos</button>
       </nav>
 
       <section id="tab-resumen" class="tab-panel active">

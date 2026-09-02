@@ -25,6 +25,9 @@ const state = {
   charts: [],
   lastHistories: null,
   lastCorr: null,
+  lastStats: null,
+  lastGainers: null,
+  lang: "es",
 };
 
 const els = {
@@ -43,7 +46,144 @@ const els = {
   corrTable: document.getElementById("corr-table"),
   chartsGrid: document.getElementById("charts-grid"),
   themeToggle: document.getElementById("theme-toggle"),
+  langEnBtn: document.getElementById("lang-en"),
+  langEsBtn: document.getElementById("lang-es"),
 };
+
+// ---------- Idioma ----------
+
+const LANG_KEY = "market-analysis-lang";
+
+const translations = {
+  es: {
+    pageTitle: "Market Analysis",
+    subtitle: "Yahoo Finance · indicadores · correlaciones",
+    selectedInstruments: "Instrumentos seleccionados",
+    noneSelected: "Ninguno seleccionado.",
+    searchInstrument: "🔎 Buscar instrumento",
+    searchPlaceholder: "ej. Apple, oro, S&P 500...",
+    historicalRange: "Rango histórico",
+    interval: "Intervalo",
+    generate: "🚀 Generar",
+    generating: "Descargando...",
+    topGainersTitle: "🔥 Mayores subidas del día",
+    loading: "Cargando...",
+    gainersError: "No se pudieron cargar las subidas del día.",
+    gainersEmpty: "Sin datos disponibles ahora mismo.",
+    addToSelected: "Añadir a seleccionados",
+    emptyStateHtml: "👈 Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.",
+    tabResumen: "📋 Resumen",
+    tabStats: "📐 Estadísticas",
+    tabCorr: "🔗 Correlación",
+    tabCharts: "📊 Gráficos",
+    selectAtLeastOne: "Selecciona al menos un instrumento.",
+    unknownError: "Error desconocido.",
+    connectionError: "No se pudo conectar con el servidor.",
+    correlationEmpty: "Selecciona al menos dos instrumentos para ver la correlación.",
+    weekRangeLabel: "52 sem",
+    themeToggleTitle: "Cambiar tema",
+    overboughtLabel: "Sobrecompra (70)",
+    oversoldLabel: "Sobreventa (30)",
+    locale: "es-ES",
+    statCols: {
+      Nombre: "Nombre",
+      "Retorno anualizado %": "Retorno anualizado %",
+      "Volatilidad anualizada %": "Volatilidad anualizada %",
+      Sharpe: "Sharpe",
+      "Máx drawdown %": "Máx drawdown %",
+    },
+  },
+  en: {
+    pageTitle: "Market Analysis",
+    subtitle: "Yahoo Finance · indicators · correlations",
+    selectedInstruments: "Selected instruments",
+    noneSelected: "None selected.",
+    searchInstrument: "🔎 Search instrument",
+    searchPlaceholder: "e.g. Apple, gold, S&P 500...",
+    historicalRange: "Historical range",
+    interval: "Interval",
+    generate: "🚀 Generate",
+    generating: "Loading...",
+    topGainersTitle: "🔥 Today's top gainers",
+    loading: "Loading...",
+    gainersError: "Could not load today's top gainers.",
+    gainersEmpty: "No data available right now.",
+    addToSelected: "Add to selected",
+    emptyStateHtml: "👈 Choose instruments in the sidebar and click <strong>Generate</strong>.",
+    tabResumen: "📋 Summary",
+    tabStats: "📐 Statistics",
+    tabCorr: "🔗 Correlation",
+    tabCharts: "📊 Charts",
+    selectAtLeastOne: "Select at least one instrument.",
+    unknownError: "Unknown error.",
+    connectionError: "Could not connect to the server.",
+    correlationEmpty: "Select at least two instruments to see the correlation.",
+    weekRangeLabel: "52 wk",
+    themeToggleTitle: "Toggle theme",
+    overboughtLabel: "Overbought (70)",
+    oversoldLabel: "Oversold (30)",
+    locale: "en-US",
+    statCols: {
+      Nombre: "Name",
+      "Retorno anualizado %": "Annualized return %",
+      "Volatilidad anualizada %": "Annualized volatility %",
+      Sharpe: "Sharpe",
+      "Máx drawdown %": "Max drawdown %",
+    },
+  },
+};
+
+function storedLang() {
+  try {
+    return localStorage.getItem(LANG_KEY);
+  } catch (e) {
+    return null;
+  }
+}
+
+function t(key) {
+  return translations[state.lang][key];
+}
+
+function applyLanguage(lang) {
+  state.lang = lang === "en" ? "en" : "es";
+  document.documentElement.setAttribute("lang", state.lang);
+  document.title = t("pageTitle");
+
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach((el) => {
+    el.innerHTML = t(el.dataset.i18nHtml);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+    el.title = t(el.dataset.i18nTitle);
+  });
+
+  els.langEnBtn?.classList.toggle("active", state.lang === "en");
+  els.langEsBtn?.classList.toggle("active", state.lang === "es");
+
+  if (!els.generateBtn.disabled) {
+    els.generateBtn.textContent = t("generate");
+  }
+
+  renderTickerList();
+  if (state.lastStats) renderStats(state.lastStats);
+  renderCorrelation(state.lastCorr);
+  if (state.lastGainers) renderTopGainers(state.lastGainers);
+
+  try {
+    localStorage.setItem(LANG_KEY, state.lang);
+  } catch (e) {}
+}
+
+els.langEnBtn?.addEventListener("click", () => applyLanguage("en"));
+els.langEsBtn?.addEventListener("click", () => applyLanguage("es"));
+
+applyLanguage(storedLang() || "es");
 
 // ---------- Tema claro/oscuro ----------
 
@@ -92,7 +232,7 @@ function truncateLabel(name, maxLen = 15) {
 
 function fmtNum(value, decimals = 2) {
   if (value === null || value === undefined) return "—";
-  return Number(value).toLocaleString("es-ES", {
+  return Number(value).toLocaleString(t("locale"), {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -106,7 +246,7 @@ function renderTickerList() {
   if (names.length === 0) {
     const li = document.createElement("li");
     li.className = "ticker-empty";
-    li.textContent = "Ninguno seleccionado.";
+    li.textContent = t("noneSelected");
     els.tickerList.appendChild(li);
     return;
   }
@@ -217,12 +357,12 @@ function setStatus(message, type) {
 els.generateBtn.addEventListener("click", async () => {
   const tickers = state.selected;
   if (Object.keys(tickers).length === 0) {
-    setStatus("Selecciona al menos un instrumento.", "error");
+    setStatus(t("selectAtLeastOne"), "error");
     return;
   }
   setStatus("");
   els.generateBtn.disabled = true;
-  els.generateBtn.textContent = "Descargando...";
+  els.generateBtn.textContent = t("generating");
   try {
     const res = await fetch("/api/generate", {
       method: "POST",
@@ -235,15 +375,15 @@ els.generateBtn.addEventListener("click", async () => {
     });
     const data = await res.json();
     if (!res.ok) {
-      setStatus(data.error || "Error desconocido.", "error");
+      setStatus(data.error || t("unknownError"), "error");
       return;
     }
     renderResults(data);
   } catch (err) {
-    setStatus("No se pudo conectar con el servidor.", "error");
+    setStatus(t("connectionError"), "error");
   } finally {
     els.generateBtn.disabled = false;
-    els.generateBtn.textContent = "🚀 Generar";
+    els.generateBtn.textContent = t("generate");
   }
 });
 
@@ -252,6 +392,7 @@ function renderResults(data) {
   els.results.hidden = false;
   state.lastHistories = data.histories;
   state.lastCorr = data.corr;
+  state.lastStats = data.stats;
   renderSummary(data.summary);
   renderStats(data.stats);
   renderCorrelation(data.corr);
@@ -273,7 +414,7 @@ function renderSummary(rows) {
       <div class="label">${row.Nombre}</div>
       <div class="value">${row.Precio != null ? fmtNum(row.Precio) + " " + (row.Moneda || "") : "—"}</div>
       ${variacion != null ? `<div class="delta ${deltaClass}">${deltaSign} ${fmtNum(Math.abs(variacion))} %</div>` : ""}
-      ${row["Máx 52 sem"] != null ? `<div class="range">52 sem: ${fmtNum(row["Mín 52 sem"])} – ${fmtNum(row["Máx 52 sem"])}</div>` : ""}
+      ${row["Máx 52 sem"] != null ? `<div class="range">${t("weekRangeLabel")}: ${fmtNum(row["Mín 52 sem"])} – ${fmtNum(row["Máx 52 sem"])}</div>` : ""}
     `;
     els.summaryCards.appendChild(card);
   });
@@ -282,8 +423,10 @@ function renderSummary(rows) {
 // ---------- Estadísticas ----------
 
 function renderStats(rows) {
+  state.lastStats = rows;
   const cols = ["Nombre", "Retorno anualizado %", "Volatilidad anualizada %", "Sharpe", "Máx drawdown %"];
-  let html = "<thead><tr>" + cols.map((c) => `<th>${c}</th>`).join("") + "</tr></thead><tbody>";
+  const statCols = t("statCols");
+  let html = "<thead><tr>" + cols.map((c) => `<th>${statCols[c] || c}</th>`).join("") + "</tr></thead><tbody>";
   rows.forEach((row) => {
     html += "<tr>" + cols.map((c) => `<td>${c === "Nombre" ? row[c] : fmtNum(row[c])}</td>`).join("") + "</tr>";
   });
@@ -320,7 +463,7 @@ function renderCorrelation(corr) {
   if (!corr) {
     const p = document.createElement("p");
     p.className = "corr-empty";
-    p.textContent = "Selecciona al menos dos instrumentos para ver la correlación.";
+    p.textContent = t("correlationEmpty");
     els.corrHeatmap.appendChild(p);
     return;
   }
@@ -431,8 +574,8 @@ function renderCharts(histories) {
         labels,
         datasets: [
           { label: "RSI14", data: rows.map((r) => r.RSI14), borderColor: palette.violet, borderWidth: 1.2, pointRadius: 0, tension: 0.05 },
-          { label: "Sobrecompra (70)", data: rows.map(() => 70), borderColor: palette.critical, borderWidth: 0.8, borderDash: [4, 4], pointRadius: 0 },
-          { label: "Sobreventa (30)", data: rows.map(() => 30), borderColor: palette.good, borderWidth: 0.8, borderDash: [4, 4], pointRadius: 0 },
+          { label: t("overboughtLabel"), data: rows.map(() => 70), borderColor: palette.critical, borderWidth: 0.8, borderDash: [4, 4], pointRadius: 0 },
+          { label: t("oversoldLabel"), data: rows.map(() => 30), borderColor: palette.good, borderWidth: 0.8, borderDash: [4, 4], pointRadius: 0 },
         ],
       },
       options: chartOptions(palette, { legend: false, yMin: 0, yMax: 100 }),
@@ -449,9 +592,11 @@ async function loadTopGainers() {
   try {
     const res = await fetch("/api/top-gainers?count=10");
     const rows = await res.json();
+    state.lastGainers = rows;
     renderTopGainers(rows);
   } catch (err) {
-    container.innerHTML = '<p class="gainers-status">No se pudieron cargar las subidas del día.</p>';
+    state.lastGainers = null;
+    container.innerHTML = `<p class="gainers-status">${t("gainersError")}</p>`;
   }
 }
 
@@ -459,7 +604,7 @@ function renderTopGainers(rows) {
   const container = document.getElementById("top-gainers-list");
   container.innerHTML = "";
   if (!rows || !rows.length) {
-    container.innerHTML = '<p class="gainers-status">Sin datos disponibles ahora mismo.</p>';
+    container.innerHTML = `<p class="gainers-status">${t("gainersEmpty")}</p>`;
     return;
   }
   rows.forEach((row) => {
@@ -471,7 +616,7 @@ function renderTopGainers(rows) {
         <span class="gainer-name" title="${row.name}">${row.name}</span>
       </div>
       <span class="gainer-change">▲ ${row.change_percent != null ? row.change_percent.toFixed(2) : "—"}%</span>
-      <button class="gainer-add-btn" type="button" title="Añadir a seleccionados">+</button>
+      <button class="gainer-add-btn" type="button" title="${t("addToSelected")}">+</button>
     `;
     card.querySelector(".gainer-add-btn").addEventListener("click", () => {
       state.selected[row.name] = row.symbol;
