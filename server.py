@@ -1,6 +1,7 @@
 """Servidor Flask: expone los datos de Yahoo Finance como JSON para la UI en static/ y templates/."""
 
 import math
+import os
 
 from flask import Flask, jsonify, render_template, request
 
@@ -92,4 +93,5 @@ def api_generate():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=not os.environ.get("PORT"), host="0.0.0.0", port=port)
