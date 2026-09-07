@@ -230,6 +230,38 @@ label { display: block; font-weight: 600; font-size: 0.9em; margin: 0.4rem 0 0.2
 .status-msg.error { background: var(--error-bg); color: var(--critical); }
 .status-msg.success { background: var(--success-bg); color: var(--good); }
 
+.btn-outline {
+  width: 100%;
+  padding: 0.6rem;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95em;
+  font-family: inherit;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.btn-outline:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.btn-outline:active { transform: translateY(1px); }
+.btn-outline:disabled { opacity: 0.6; cursor: default; transform: none; }
+
+.portfolio-inputs { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.6rem; }
+.portfolio-empty-hint { color: var(--muted); font-size: 0.85em; }
+.portfolio-row { display: flex; flex-direction: column; gap: 0.25rem; }
+.portfolio-row .portfolio-name {
+  font-size: 0.82em;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.portfolio-fields { display: flex; gap: 0.35rem; }
+.portfolio-fields input { margin-bottom: 0; font-size: 0.85em; padding: 0.4rem 0.5rem; }
+.portfolio-fields .portfolio-invested { flex: 1.1; min-width: 0; }
+.portfolio-fields .portfolio-date { flex: 1.4; min-width: 0; }
+
 .sidebar-footer {
   margin: auto 0 0;
   padding-top: 1rem;
@@ -380,3 +412,8 @@ th { color: var(--secondary); font-weight: 600; }
 .price-canvas-wrap { position: relative; height: 220px; }
 .rsi-canvas-wrap { position: relative; height: 90px; margin-top: 0.4rem; }
 .price-canvas-wrap canvas, .rsi-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+
+.portfolio-table-wrap { margin-bottom: 1.2rem; }
+.portfolio-chart-card { margin-top: 0; }
+.portfolio-canvas-wrap { position: relative; height: 300px; }
+.portfolio-canvas-wrap canvas { width: 100% !important; height: 100% !important; }

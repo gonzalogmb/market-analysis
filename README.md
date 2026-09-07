@@ -11,6 +11,9 @@ Herramienta en Python para consultar datos de mercado (índices y fondos de inve
   - `fetch_history(tickers, range_, interval, with_indicators=True)`: devuelve un `dict[nombre, DataFrame]` con el histórico de cada instrumento (`Retorno %` + indicadores técnicos de `indicators.py`).
   - `fetch_summary(tickers)`: `DataFrame` con precio actual, cierre anterior, variación %, y máximo/mínimo de 52 semanas por instrumento.
   - `TICKERS`: diccionario por defecto con los instrumentos seguidos (S&P 500, MyInvestor Value Clase C, DJE Gold & Ressourcen PA EUR Dis).
+- [`portfolio.py`](portfolio.py) — cálculo de rendimiento de cartera a partir de posiciones reales (importe invertido + fecha de compra):
+  - `compute_holding(name, symbol, invested, purchase_date, close)`: convierte un importe invertido en participaciones a partir del primer precio disponible en la fecha de compra (o después), y calcula precio de entrada, valor actual y ganancia €/%.
+  - `compute_portfolio(holdings_input, closes, benchmark_close, benchmark_name)`: agrega todas las posiciones (alineando las series por fecha, con relleno hacia delante) para obtener el valor total de la cartera a lo largo del tiempo, y construye una cartera "espejo" invirtiendo los mismos importes y fechas en un benchmark, para comparar de forma justa cómo le habría ido a ese dinero en el índice.
 - [`indicators.py`](indicators.py) — indicadores técnicos y estadísticos sobre series de precios:
   - `sma(close, window)` / `ema(close, window)`: medias móviles simple/exponencial.
   - `rsi(close, window=14)`: índice de fuerza relativa.
@@ -22,7 +25,8 @@ Herramienta en Python para consultar datos de mercado (índices y fondos de inve
 - [`server.py`](server.py) — backend web con [Flask](https://flask.palletsprojects.com/): sirve la página (`templates/index.html`) y expone la API JSON que la usa —
   - `GET /api/search?q=...`: autocompletado de instrumentos vía `search_symbols` de Yahoo Finance.
   - `POST /api/generate`: recibe `{tickers, range, interval}` y devuelve resumen, estadísticas, correlación e históricos (con indicadores) en JSON, listos para pintar en el navegador.
-- [`templates/index.html`](templates/index.html) / [`static/`](static/) — UI web: barra lateral para buscar y seleccionar instrumentos (con autocompletado), rango e intervalo; panel principal con pestañas Resumen / Estadísticas / Correlación / Gráficos. Los gráficos de precio+SMA/EMA/RSI se dibujan en el navegador con [Chart.js](https://www.chartjs.org/) (interactivos: tooltip, leyenda) y el heatmap de correlación como una cuadrícula HTML/CSS coloreada por valor.
+  - `POST /api/portfolio`: recibe `{holdings: [{name, symbol, invested, date}, ...]}` y devuelve, en EUR, el valor y ganancia de cada posición, los totales de la cartera, una cartera "espejo" en el S&P 500 (mismos importes/fechas) para comparar, y la serie temporal de ambas para el gráfico. Cuando un instrumento cotiza en otra divisa, se convierte a EUR con el tipo de cambio histórico de Yahoo Finance; si no se puede obtener ese tipo de cambio, se avisa en `currency_warnings` y el importe se deja sin convertir.
+- [`templates/index.html`](templates/index.html) / [`static/`](static/) — UI web: barra lateral para buscar y seleccionar instrumentos (con autocompletado), rango e intervalo, y una sección **Mi cartera** para introducir importe invertido y fecha de compra por instrumento; panel principal con pestañas Resumen / Estadísticas / Correlación / Gráficos / Mi cartera. Los gráficos de precio+SMA/EMA/RSI y el de cartera vs S&P 500 se dibujan en el navegador con [Chart.js](https://www.chartjs.org/) (interactivos: tooltip, leyenda) y el heatmap de correlación como una cuadrícula HTML/CSS coloreada por valor. Los importes y fechas de "Mi cartera" se guardan en el `localStorage` del navegador (no hay backend con estado ni login).
 
 ## Uso
 
@@ -31,6 +35,10 @@ python server.py
 ```
 
 Se abre en `http://localhost:5000`. En la barra lateral ves los instrumentos seleccionados (quitables con ✕), buscas otros por nombre o ticker con autocompletado en vivo, y eliges rango/intervalo. Al pulsar **Generar** se descargan los datos y se muestran en pestañas: resumen (tarjetas con precio y variación %), estadísticas anualizadas, heatmap de correlación y gráficos interactivos de precio/RSI por instrumento.
+
+### Mi cartera
+
+En la sección **Mi cartera** de la barra lateral, para cada instrumento seleccionado puedes indicar cuánto invertiste y en qué fecha. Al pulsar **Calcular cartera** se muestra, en la pestaña *Mi cartera*: el total invertido, el valor actual y la ganancia €/% de cada posición y del conjunto, cómo le habría ido a ese mismo dinero invertido en el S&P 500 en las mismas fechas, y un gráfico con la evolución de ambas carteras en el tiempo. Los datos se guardan en el navegador, así que persisten entre visitas sin necesidad de cuenta.
 
 ## Instrumentos por defecto
 

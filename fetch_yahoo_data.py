@@ -119,6 +119,40 @@ def fetch_top_gainers(count: int = 10) -> list[dict]:
     return top
 
 
+BASE_CURRENCY = "EUR"
+FULL_HISTORY_RANGE = "20y"  # Con range="max" Yahoo degrada el intervalo a datos trimestrales.
+
+
+def fetch_full_history_meta(symbol: str) -> tuple[pd.Series, str]:
+    """Cierres diarios de los últimos ~20 años (o desde que cotiza, si es menos) y la moneda nativa."""
+    result = fetch_chart(symbol, range_=FULL_HISTORY_RANGE, interval="1d")
+    close = chart_to_dataframe(result)["Close"].copy()
+    close.index = pd.to_datetime(close.index.date)
+    close = close[~close.index.duplicated(keep="last")].sort_index()
+    currency = result["meta"].get("currency") or BASE_CURRENCY
+    return close, currency
+
+
+def fetch_full_close_in_base(symbol: str, base: str = BASE_CURRENCY) -> tuple[pd.Series, bool]:
+    """Cierres diarios de `symbol` convertidos a `base` (por defecto EUR) con el tipo de cambio
+    histórico de Yahoo Finance. Devuelve (serie, convertida) — `convertida` es False si el
+    instrumento ya estaba en `base` o si no se pudo obtener el tipo de cambio (se devuelve sin
+    convertir en ese caso, para no perder el dato)."""
+    close, currency = fetch_full_history_meta(symbol)
+    if currency == base:
+        return close, True
+
+    try:
+        fx, _ = fetch_full_history_meta(f"{currency}{base}=X")
+    except (requests.RequestException, ValueError, KeyError):
+        return close, False
+
+    fx = fx.reindex(close.index.union(fx.index)).sort_index().ffill().reindex(close.index)
+    if fx.isna().all():
+        return close, False
+    return close * fx, True
+
+
 def fetch_history(
     tickers: dict[str, str], range_: str = "5d", interval: str = "1d", with_indicators: bool = True
 ) -> dict[str, pd.DataFrame]:

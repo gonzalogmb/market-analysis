@@ -27,6 +27,9 @@ const state = {
   lastCorr: null,
   lastStats: null,
   lastGainers: null,
+  lastPortfolio: null,
+  portfolio: {},
+  portfolioChart: null,
   lang: "es",
 };
 
@@ -48,6 +51,14 @@ const els = {
   themeToggle: document.getElementById("theme-toggle"),
   langEnBtn: document.getElementById("lang-en"),
   langEsBtn: document.getElementById("lang-es"),
+  portfolioInputs: document.getElementById("portfolio-inputs"),
+  portfolioBtn: document.getElementById("portfolio-btn"),
+  portfolioStatus: document.getElementById("portfolio-status"),
+  portfolioEmpty: document.getElementById("portfolio-empty"),
+  portfolioWarning: document.getElementById("portfolio-warning"),
+  portfolioSummary: document.getElementById("portfolio-summary"),
+  portfolioTable: document.getElementById("portfolio-table"),
+  portfolioCanvas: document.getElementById("portfolio-canvas"),
 };
 
 // ---------- Idioma ----------
@@ -92,6 +103,32 @@ const translations = {
       Sharpe: "Sharpe",
       "Máx drawdown %": "Máx drawdown %",
     },
+    myPortfolio: "💼 Mi cartera",
+    calcPortfolio: "📊 Calcular cartera",
+    calculating: "Calculando...",
+    investedPlaceholder: "Importe €",
+    portfolioNoneSelected: "Elige instrumentos arriba para poder añadirlos a tu cartera.",
+    portfolioEmptyError: "Añade importe invertido y fecha de compra a al menos un instrumento.",
+    tabPortfolio: "💼 Mi cartera",
+    portfolioEmpty: "Añade importe invertido y fecha de compra a tus instrumentos en la barra lateral y pulsa Calcular cartera.",
+    portfolioChartTitle: "Cartera vs S&P 500",
+    totalInvested: "Invertido",
+    currentValue: "Valor actual",
+    totalGain: "Ganancia",
+    vsBenchmark: "vs S&P 500",
+    portfolioSeriesLabel: "Tu cartera",
+    benchmarkSeriesLabel: "S&P 500 (mismo importe/fechas)",
+    currencyWarning: "No se pudo convertir a EUR el tipo de cambio de: ",
+    portfolioCols: {
+      name: "Nombre",
+      invested: "Invertido",
+      date: "Fecha compra",
+      entry_price: "Precio compra",
+      current_price: "Precio actual",
+      current_value: "Valor actual",
+      gain_pct: "Ganancia %",
+      weight_pct: "Peso %",
+    },
   },
   en: {
     pageTitle: "Market Analysis",
@@ -129,6 +166,32 @@ const translations = {
       "Volatilidad anualizada %": "Annualized volatility %",
       Sharpe: "Sharpe",
       "Máx drawdown %": "Max drawdown %",
+    },
+    myPortfolio: "💼 My portfolio",
+    calcPortfolio: "📊 Calculate portfolio",
+    calculating: "Calculating...",
+    investedPlaceholder: "Amount €",
+    portfolioNoneSelected: "Choose instruments above to add them to your portfolio.",
+    portfolioEmptyError: "Add an invested amount and purchase date to at least one instrument.",
+    tabPortfolio: "💼 My portfolio",
+    portfolioEmpty: "Add an invested amount and purchase date to your instruments in the sidebar, then click Calculate portfolio.",
+    portfolioChartTitle: "Portfolio vs S&P 500",
+    totalInvested: "Invested",
+    currentValue: "Current value",
+    totalGain: "Gain",
+    vsBenchmark: "vs S&P 500",
+    portfolioSeriesLabel: "Your portfolio",
+    benchmarkSeriesLabel: "S&P 500 (same amount/dates)",
+    currencyWarning: "Could not convert to EUR the exchange rate for: ",
+    portfolioCols: {
+      name: "Name",
+      invested: "Invested",
+      date: "Purchase date",
+      entry_price: "Purchase price",
+      current_price: "Current price",
+      current_value: "Current value",
+      gain_pct: "Gain %",
+      weight_pct: "Weight %",
     },
   },
 };
@@ -174,6 +237,7 @@ function applyLanguage(lang) {
   if (state.lastStats) renderStats(state.lastStats);
   renderCorrelation(state.lastCorr);
   if (state.lastGainers) renderTopGainers(state.lastGainers);
+  if (state.lastPortfolio) renderPortfolio(state.lastPortfolio);
 
   try {
     localStorage.setItem(LANG_KEY, state.lang);
@@ -222,6 +286,7 @@ els.themeToggle?.addEventListener("click", () => {
   } catch (e) {}
   if (state.lastHistories) renderCharts(state.lastHistories);
   renderCorrelation(state.lastCorr);
+  if (state.lastPortfolio) renderPortfolio(state.lastPortfolio);
 });
 
 applyTheme(storedTheme());
@@ -248,28 +313,236 @@ function renderTickerList() {
     li.className = "ticker-empty";
     li.textContent = t("noneSelected");
     els.tickerList.appendChild(li);
+  } else {
+    names.forEach((name) => {
+      const symbol = state.selected[name];
+      const li = document.createElement("li");
+      li.className = "ticker-item";
+
+      const span = document.createElement("span");
+      span.textContent = `${name} (${symbol})`;
+      span.title = `${name} (${symbol})`;
+
+      const btn = document.createElement("button");
+      btn.className = "remove-btn";
+      btn.textContent = "✕";
+      btn.addEventListener("click", () => {
+        delete state.selected[name];
+        renderTickerList();
+      });
+
+      li.appendChild(span);
+      li.appendChild(btn);
+      els.tickerList.appendChild(li);
+    });
+  }
+  renderPortfolioInputs();
+}
+
+// ---------- Mi cartera ----------
+
+const PORTFOLIO_KEY = "market-analysis-portfolio";
+
+function loadPortfolioState() {
+  try {
+    const raw = localStorage.getItem(PORTFOLIO_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function savePortfolioState() {
+  try {
+    localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(state.portfolio));
+  } catch (e) {}
+}
+
+state.portfolio = loadPortfolioState();
+
+function renderPortfolioInputs() {
+  els.portfolioInputs.innerHTML = "";
+  const names = Object.keys(state.selected);
+
+  // Descarta entradas de instrumentos que ya no están seleccionados.
+  let changed = false;
+  Object.keys(state.portfolio).forEach((name) => {
+    if (!(name in state.selected)) {
+      delete state.portfolio[name];
+      changed = true;
+    }
+  });
+  if (changed) savePortfolioState();
+
+  if (names.length === 0) {
+    const p = document.createElement("p");
+    p.className = "portfolio-empty-hint";
+    p.textContent = t("portfolioNoneSelected");
+    els.portfolioInputs.appendChild(p);
     return;
   }
+
   names.forEach((name) => {
-    const symbol = state.selected[name];
-    const li = document.createElement("li");
-    li.className = "ticker-item";
+    const entry = state.portfolio[name] || {};
+    const row = document.createElement("div");
+    row.className = "portfolio-row";
+    row.innerHTML = `
+      <span class="portfolio-name" title="${name}">${name}</span>
+      <div class="portfolio-fields">
+        <input type="number" class="portfolio-invested" min="0" step="0.01" placeholder="${t("investedPlaceholder")}" />
+        <input type="date" class="portfolio-date" />
+      </div>
+    `;
+    const investedInput = row.querySelector(".portfolio-invested");
+    const dateInput = row.querySelector(".portfolio-date");
+    if (entry.invested != null) investedInput.value = entry.invested;
+    if (entry.date) dateInput.value = entry.date;
 
-    const span = document.createElement("span");
-    span.textContent = `${name} (${symbol})`;
-    span.title = `${name} (${symbol})`;
+    const update = () => {
+      const invested = parseFloat(investedInput.value);
+      const date = dateInput.value;
+      if (invested > 0 && date) {
+        state.portfolio[name] = { invested, date };
+      } else {
+        delete state.portfolio[name];
+      }
+      savePortfolioState();
+    };
+    investedInput.addEventListener("input", update);
+    dateInput.addEventListener("change", update);
 
-    const btn = document.createElement("button");
-    btn.className = "remove-btn";
-    btn.textContent = "✕";
-    btn.addEventListener("click", () => {
-      delete state.selected[name];
-      renderTickerList();
+    els.portfolioInputs.appendChild(row);
+  });
+}
+
+function setPortfolioStatus(message, type) {
+  if (!message) {
+    els.portfolioStatus.hidden = true;
+    return;
+  }
+  els.portfolioStatus.hidden = false;
+  els.portfolioStatus.textContent = message;
+  els.portfolioStatus.className = `status-msg ${type || ""}`;
+}
+
+els.portfolioBtn.addEventListener("click", async () => {
+  const holdings = Object.entries(state.portfolio)
+    .map(([name, entry]) => ({ name, symbol: state.selected[name], invested: entry.invested, date: entry.date }))
+    .filter((h) => h.symbol && h.invested > 0 && h.date);
+
+  if (!holdings.length) {
+    setPortfolioStatus(t("portfolioEmptyError"), "error");
+    return;
+  }
+  setPortfolioStatus("");
+  els.portfolioBtn.disabled = true;
+  els.portfolioBtn.textContent = t("calculating");
+  try {
+    const res = await fetch("/api/portfolio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ holdings }),
     });
+    const data = await res.json();
+    if (!res.ok) {
+      setPortfolioStatus(data.error || t("unknownError"), "error");
+      return;
+    }
+    state.lastPortfolio = data;
+    els.emptyState.hidden = true;
+    els.results.hidden = false;
+    renderPortfolio(data);
+    document.querySelector('.tab-btn[data-tab="portfolio"]')?.click();
+  } catch (err) {
+    setPortfolioStatus(t("connectionError"), "error");
+  } finally {
+    els.portfolioBtn.disabled = false;
+    els.portfolioBtn.textContent = t("calcPortfolio");
+  }
+});
 
-    li.appendChild(span);
-    li.appendChild(btn);
-    els.tickerList.appendChild(li);
+function renderPortfolio(data) {
+  els.portfolioEmpty.hidden = true;
+  els.portfolioSummary.innerHTML = "";
+  els.portfolioTable.innerHTML = "";
+
+  if (data.currency_warnings && data.currency_warnings.length) {
+    els.portfolioWarning.hidden = false;
+    els.portfolioWarning.className = "status-msg error";
+    els.portfolioWarning.textContent = t("currencyWarning") + data.currency_warnings.join(", ");
+  } else {
+    els.portfolioWarning.hidden = true;
+  }
+
+  const palette = getPalette();
+  const { totals, benchmark } = data;
+
+  const cards = [
+    { label: t("totalInvested"), value: fmtNum(totals.invested) + " €" },
+    {
+      label: t("currentValue"),
+      value: fmtNum(totals.current_value) + " €",
+      delta: totals.gain_pct,
+      deltaText: totals.gain_pct != null ? `${totals.gain_pct >= 0 ? "▲" : "▼"} ${fmtNum(Math.abs(totals.gain_pct))} %` : null,
+    },
+  ];
+  if (benchmark && totals.gain_pct != null && benchmark.gain_pct != null) {
+    const diff = totals.gain_pct - benchmark.gain_pct;
+    cards.push({
+      label: t("vsBenchmark"),
+      value: `${fmtNum(benchmark.gain_pct)} %`,
+      delta: diff,
+      deltaText: `${diff >= 0 ? "▲" : "▼"} ${fmtNum(Math.abs(diff))} pp`,
+    });
+  }
+
+  cards.forEach((c) => {
+    const card = document.createElement("div");
+    card.className = "metric-card";
+    const deltaClass = c.delta == null ? "" : c.delta >= 0 ? "up" : "down";
+    card.innerHTML = `
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      ${c.deltaText ? `<div class="delta ${deltaClass}">${c.deltaText}</div>` : ""}
+    `;
+    els.portfolioSummary.appendChild(card);
+  });
+
+  const cols = ["name", "invested", "date", "entry_price", "current_price", "current_value", "gain_pct", "weight_pct"];
+  const colLabels = t("portfolioCols");
+  let html = "<thead><tr>" + cols.map((c) => `<th>${colLabels[c] || c}</th>`).join("") + "</tr></thead><tbody>";
+  data.holdings.forEach((row) => {
+    html += "<tr>" + cols.map((c) => {
+      if (c === "name" || c === "date") return `<td>${row[c]}</td>`;
+      return `<td>${fmtNum(row[c])}</td>`;
+    }).join("") + "</tr>";
+  });
+  html += "</tbody>";
+  els.portfolioTable.innerHTML = html;
+
+  if (state.portfolioChart) {
+    state.portfolioChart.destroy();
+    state.portfolioChart = null;
+  }
+  const labels = data.series.map((r) => r.date);
+  const datasets = [
+    { label: t("portfolioSeriesLabel"), data: data.series.map((r) => r.portfolio), borderColor: palette.blue, borderWidth: 1.6, pointRadius: 0, tension: 0.05 },
+  ];
+  if (data.series.some((r) => r.benchmark != null)) {
+    datasets.push({
+      label: t("benchmarkSeriesLabel"),
+      data: data.series.map((r) => r.benchmark),
+      borderColor: palette.orange,
+      borderDash: [5, 3],
+      borderWidth: 1.4,
+      pointRadius: 0,
+      tension: 0.05,
+    });
+  }
+  state.portfolioChart = new Chart(els.portfolioCanvas.getContext("2d"), {
+    type: "line",
+    data: { labels, datasets },
+    options: chartOptions(palette, { legend: true }),
   });
 }
 
