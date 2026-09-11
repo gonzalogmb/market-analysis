@@ -591,3 +591,38 @@ th { color: var(--muted); font-weight: 700; font-size: 0.85em; text-transform: u
   line-height: 1.4;
 }
 .portfolio-login-hint a { color: var(--primary); }
+
+/* ============ Responsive (móvil / pantallas estrechas) ============ */
+
+@media (max-width: 760px) {
+  .app { flex-direction: column; }
+
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 15px 16px 20px;
+  }
+
+  .content { width: 100%; padding: 1.25rem 1rem 2rem; }
+
+  .top-controls { top: 12px; right: 12px; gap: 0.35rem; }
+
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { flex-shrink: 0; }
+
+  .heatmap { max-width: 100%; overflow-x: auto; }
+
+  .metric-card .value { font-size: 1.25rem; }
+
+  .portfolio-form-row .pf-name { flex-basis: 100%; }
+  .portfolio-form-row input[type="number"],
+  .portfolio-form-row input[type="date"] { flex: 1 1 130px; }
+}
