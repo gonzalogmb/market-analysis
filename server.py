@@ -260,14 +260,14 @@ def api_add_transaction():
     if not name or not symbol or not date:
         return jsonify({"error": "Falta nombre, símbolo o fecha del movimiento."}), 400
     try:
-        amount = float(payload.get("amount"))
+        units = float(payload.get("units"))
     except (TypeError, ValueError):
-        return jsonify({"error": "El importe debe ser numérico."}), 400
-    if amount == 0:
-        return jsonify({"error": "El importe no puede ser 0."}), 400
+        return jsonify({"error": "Las participaciones deben ser un número."}), 400
+    if units == 0:
+        return jsonify({"error": "Las participaciones no pueden ser 0."}), 400
 
     try:
-        tx = db.add_transaction(name, symbol, amount, date)
+        tx = db.add_transaction(name, symbol, units, date)
     except db.DatabaseNotConfigured:
         return jsonify({"error": "El servidor no tiene configurada la base de datos (DATABASE_URL)."}), 503
 

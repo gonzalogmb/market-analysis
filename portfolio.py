@@ -1,9 +1,10 @@
 """Cálculo de rendimiento de cartera a partir de un histórico de movimientos (aportaciones y
-retiradas) por instrumento, no de una única compra. Cada movimiento suma o resta participaciones
-al precio de la fecha en que se registra (positivo = aportación, negativo = retirada), y el valor
-de la cartera en el tiempo se construye acumulando esas participaciones. También calcula una
-cartera "espejo" invirtiendo los mismos movimientos en un benchmark, para comparar de forma justa
-cómo le habría ido a ese mismo dinero en el índice."""
+retiradas) por instrumento, no de una única compra. Cada movimiento suma o resta un número de
+participaciones directamente (positivo = aportación, negativo = retirada), y el valor de la
+cartera en el tiempo se construye acumulando esas participaciones. También calcula una cartera
+"espejo" invirtiendo en el benchmark el importe en euros equivalente de cada movimiento (unidades
+de fondos distintos no son comparables entre sí ni con las del índice), para comparar de forma
+justa cómo le habría ido a ese mismo dinero en el índice."""
 
 import pandas as pd
 
@@ -23,11 +24,45 @@ def _entry_price(close: pd.Series, date: pd.Timestamp) -> tuple[pd.Timestamp, fl
     return close.index[pos], float(close.iloc[pos])
 
 
-def _share_series(close: pd.Series, transactions: list[dict]) -> tuple[pd.Series | None, float, float]:
-    """Construye la serie de participaciones acumuladas a partir de los movimientos (procesados
-    en orden de fecha), participaciones que compra o vende cada uno al primer precio disponible
-    en su fecha. Devuelve (serie de participaciones alineada con `close`, participaciones
-    actuales, importe neto invertido) — o (None, 0, 0) si ningún movimiento fue válido."""
+def _share_series_by_units(
+    close: pd.Series, transactions: list[dict]
+) -> tuple[pd.Series | None, float, float, list[dict]]:
+    """Construye la serie de participaciones acumuladas a partir de movimientos que ya vienen en
+    participaciones (`units`), procesados en orden de fecha. Devuelve (serie de participaciones
+    alineada con `close`, participaciones actuales, importe neto invertido en euros, lista de
+    eventos {amount, date} en euros para poder simular esos mismos importes en el benchmark) — o
+    (None, 0, 0, []) si ningún movimiento fue válido."""
+    ordered = sorted(transactions, key=lambda t: t["date"])
+    steps = []
+    cumulative = 0.0
+    net_invested = 0.0
+    invested_events = []
+
+    for tx in ordered:
+        entry = _entry_price(close, pd.Timestamp(tx["date"]))
+        if entry is None or entry[1] <= 0:
+            continue
+        entry_date, price = entry
+        units = tx["units"]
+        euro_amount = units * price
+        cumulative += units
+        net_invested += euro_amount
+        steps.append((entry_date, cumulative))
+        invested_events.append({"amount": euro_amount, "date": entry_date.strftime("%Y-%m-%d")})
+
+    if not steps:
+        return None, 0.0, 0.0, []
+
+    step_series = pd.Series([v for _, v in steps], index=pd.DatetimeIndex([d for d, _ in steps]))
+    step_series = step_series[~step_series.index.duplicated(keep="last")].sort_index()
+    shares_series = step_series.reindex(close.index).ffill().fillna(0)
+    return shares_series, cumulative, net_invested, invested_events
+
+
+def _share_series_by_amount(close: pd.Series, transactions: list[dict]) -> tuple[pd.Series | None, float, float]:
+    """Igual que `_share_series_by_units` pero a partir de movimientos en euros (`amount`), que se
+    convierten a participaciones dividiendo por el precio de entrada. Se usa para simular la
+    cartera "espejo" en el benchmark a partir de los importes en euros de los movimientos reales."""
     ordered = sorted(transactions, key=lambda t: t["date"])
     steps = []
     cumulative = 0.0
@@ -51,8 +86,35 @@ def _share_series(close: pd.Series, transactions: list[dict]) -> tuple[pd.Series
     return shares_series, cumulative, net_invested
 
 
-def compute_holding(name: str, symbol: str, transactions: list[dict], close: pd.Series) -> dict | None:
-    shares_series, current_shares, net_invested = _share_series(close, transactions)
+def compute_holding(
+    name: str, symbol: str, transactions: list[dict], close: pd.Series
+) -> tuple[dict | None, list[dict]]:
+    """transactions: [{units, date}, ...]. Devuelve (resultado, eventos en euros para el
+    benchmark) — (None, []) si no hay ningún movimiento válido."""
+    shares_series, current_shares, net_invested, invested_events = _share_series_by_units(close, transactions)
+    if shares_series is None or net_invested == 0:
+        return None, []
+
+    current_price = float(close.dropna().iloc[-1])
+    current_value = current_shares * current_price
+
+    result = {
+        "name": name,
+        "symbol": symbol,
+        "invested": net_invested,
+        "n_transactions": len(transactions),
+        "current_price": current_price,
+        "current_value": current_value,
+        "gain_abs": current_value - net_invested,
+        "gain_pct": (current_value / net_invested - 1) * 100 if net_invested else None,
+        "series": shares_series * close,
+    }
+    return result, invested_events
+
+
+def compute_benchmark_holding(name: str, symbol: str, amount_transactions: list[dict], close: pd.Series) -> dict | None:
+    """amount_transactions: [{amount, date}, ...] en euros (la simulación "espejo")."""
+    shares_series, current_shares, net_invested = _share_series_by_amount(close, amount_transactions)
     if shares_series is None or net_invested == 0:
         return None
 
@@ -63,7 +125,6 @@ def compute_holding(name: str, symbol: str, transactions: list[dict], close: pd.
         "name": name,
         "symbol": symbol,
         "invested": net_invested,
-        "n_transactions": len(transactions),
         "current_price": current_price,
         "current_value": current_value,
         "gain_abs": current_value - net_invested,
@@ -78,11 +139,11 @@ def compute_portfolio(
     benchmark_close: pd.Series | None,
     benchmark_name: str,
 ) -> dict | None:
-    """holdings_input: [{name, symbol, transactions: [{amount, date}, ...]}, ...]"""
+    """holdings_input: [{name, symbol, transactions: [{units, date}, ...]}, ...]"""
     holdings = []
     skipped = []
     all_series = []
-    benchmark_tx = []  # todos los movimientos de todos los fondos, para simular el benchmark
+    benchmark_tx = []  # importes en euros de todos los movimientos de todos los fondos, para el espejo
 
     for h in holdings_input:
         name = h.get("name") or h.get("symbol") or "?"
@@ -98,14 +159,14 @@ def compute_portfolio(
             skipped.append(name)
             continue
 
-        result = compute_holding(name, symbol, txs, close)
+        result, invested_events = compute_holding(name, symbol, txs, close)
         if result is None:
             skipped.append(name)
             continue
 
         all_series.append(result.pop("series"))
         holdings.append(result)
-        benchmark_tx.extend(txs)
+        benchmark_tx.extend(invested_events)
 
     if not holdings:
         return None
@@ -125,7 +186,7 @@ def compute_portfolio(
     benchmark_totals = None
     benchmark_series = None
     if benchmark_close is not None and benchmark_tx:
-        bench_result = compute_holding(benchmark_name, benchmark_name, benchmark_tx, benchmark_close)
+        bench_result = compute_benchmark_holding(benchmark_name, benchmark_name, benchmark_tx, benchmark_close)
         if bench_result is not None:
             benchmark_series = bench_result["series"]
             bench_current = bench_result["current_value"]

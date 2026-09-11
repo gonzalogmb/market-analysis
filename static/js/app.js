@@ -142,15 +142,15 @@ const translations = {
     logout: "Cerrar sesión",
     loginBtn: "Iniciar sesión",
     portfolioLoginHint: "Inicia sesión (botón arriba a la izquierda) para usar tu cartera personal.",
-    fundNetLabel: "Neto",
+    fundNetLabel: "Participaciones netas",
     noMovements: "Sin movimientos todavía.",
     txDeposit: "Aportación",
     txWithdraw: "Retirada",
     txAddDeposit: "+ Aportar",
     txAddWithdraw: "− Retirar",
-    txAmountPlaceholder: "Importe €",
+    txUnitsPlaceholder: "Participaciones",
     txAddBtn: "Añadir",
-    txAmountRequired: "Indica un importe mayor que 0.",
+    txUnitsRequired: "Indica un número de participaciones distinto de 0.",
     txDateRequired: "Indica una fecha.",
     txLoadError: "No se pudieron cargar tus movimientos.",
     removeTitle: "Eliminar",
@@ -228,15 +228,15 @@ const translations = {
     logout: "Log out",
     loginBtn: "Log in",
     portfolioLoginHint: "Log in (top-left button) to use your personal portfolio.",
-    fundNetLabel: "Net",
+    fundNetLabel: "Net units",
     noMovements: "No movements yet.",
     txDeposit: "Deposit",
     txWithdraw: "Withdrawal",
     txAddDeposit: "+ Deposit",
     txAddWithdraw: "− Withdraw",
-    txAmountPlaceholder: "Amount €",
+    txUnitsPlaceholder: "Units",
     txAddBtn: "Add",
-    txAmountRequired: "Enter an amount greater than 0.",
+    txUnitsRequired: "Enter a non-zero number of units.",
     txDateRequired: "Enter a date.",
     txLoadError: "Could not load your movements.",
     removeTitle: "Remove",
@@ -353,6 +353,10 @@ function fmtNum(value, decimals = 2) {
   });
 }
 
+function fmtUnits(value) {
+  return fmtNum(value, 4);
+}
+
 // ---------- Selección de instrumentos ----------
 
 function renderTickerList() {
@@ -467,27 +471,27 @@ function renderManageList() {
   names.forEach((name) => {
     const symbol = state.selected[name];
     const txs = (grouped[name] ? grouped[name].transactions : []).slice().sort((a, b) => a.date.localeCompare(b.date));
-    const net = txs.reduce((sum, tx) => sum + tx.amount, 0);
+    const net = txs.reduce((sum, tx) => sum + tx.units, 0);
 
     const card = document.createElement("div");
     card.className = "fund-manager";
 
     const header = document.createElement("div");
     header.className = "fund-manager-header";
-    header.innerHTML = `<span class="fund-name" title="${name}">${name}</span><span class="fund-net">${t("fundNetLabel")}: ${fmtNum(net)} €</span>`;
+    header.innerHTML = `<span class="fund-name" title="${name}">${name}</span><span class="fund-net">${t("fundNetLabel")}: ${fmtUnits(net)}</span>`;
     card.appendChild(header);
 
     if (txs.length) {
       const list = document.createElement("ul");
       list.className = "tx-list";
       txs.forEach((tx) => {
-        const isDeposit = tx.amount >= 0;
+        const isDeposit = tx.units >= 0;
         const li = document.createElement("li");
         li.className = "tx-item";
         li.innerHTML = `
           <span class="tx-date">${tx.date}</span>
           <span class="tx-badge ${isDeposit ? "deposit" : "withdraw"}">${isDeposit ? t("txDeposit") : t("txWithdraw")}</span>
-          <span class="tx-amount">${isDeposit ? "+" : "−"} ${fmtNum(Math.abs(tx.amount))} €</span>
+          <span class="tx-amount">${isDeposit ? "+" : "−"} ${fmtUnits(Math.abs(tx.units))}</span>
           <button class="tx-delete" type="button" aria-label="${t("removeTitle")}">✕</button>
         `;
         li.querySelector(".tx-delete").addEventListener("click", () => deleteTransactionUI(tx.id));
@@ -508,7 +512,7 @@ function renderManageList() {
         <button type="button" class="tx-type-btn active" data-type="deposit">${t("txAddDeposit")}</button>
         <button type="button" class="tx-type-btn" data-type="withdraw">${t("txAddWithdraw")}</button>
       </div>
-      <input type="number" class="tx-amount-input" min="0.01" step="0.01" placeholder="${t("txAmountPlaceholder")}" />
+      <input type="number" class="tx-amount-input" min="0.0001" step="0.0001" placeholder="${t("txUnitsPlaceholder")}" />
       <input type="date" class="tx-date-input" />
       <button type="button" class="btn-outline tx-add-btn">${t("txAddBtn")}</button>
     `;
@@ -521,21 +525,21 @@ function renderManageList() {
         txType = btn.dataset.type;
       });
     });
-    const amountInput = addRow.querySelector(".tx-amount-input");
+    const unitsInput = addRow.querySelector(".tx-amount-input");
     const dateInput = addRow.querySelector(".tx-date-input");
     addRow.querySelector(".tx-add-btn").addEventListener("click", () => {
-      const amount = parseFloat(amountInput.value);
-      if (!(amount > 0)) {
-        setManageStatus(t("txAmountRequired"), "error");
+      const units = parseFloat(unitsInput.value);
+      if (!(units > 0)) {
+        setManageStatus(t("txUnitsRequired"), "error");
         return;
       }
       if (!dateInput.value) {
         setManageStatus(t("txDateRequired"), "error");
         return;
       }
-      const signedAmount = txType === "withdraw" ? -amount : amount;
-      addTransactionUI(name, symbol, signedAmount, dateInput.value, () => {
-        amountInput.value = "";
+      const signedUnits = txType === "withdraw" ? -units : units;
+      addTransactionUI(name, symbol, signedUnits, dateInput.value, () => {
+        unitsInput.value = "";
         dateInput.value = "";
       });
     });
@@ -545,13 +549,13 @@ function renderManageList() {
   });
 }
 
-async function addTransactionUI(name, symbol, amount, date, onSuccess) {
+async function addTransactionUI(name, symbol, units, date, onSuccess) {
   setManageStatus("");
   try {
     const res = await fetch("/api/portfolio/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, symbol, amount, date }),
+      body: JSON.stringify({ name, symbol, units, date }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -590,7 +594,7 @@ async function recomputePortfolio() {
     .map((h) => ({
       name: h.name,
       symbol: h.symbol,
-      transactions: h.transactions.map((tx) => ({ amount: tx.amount, date: tx.date })),
+      transactions: h.transactions.map((tx) => ({ units: tx.units, date: tx.date })),
     }))
     .filter((h) => h.transactions.length);
 

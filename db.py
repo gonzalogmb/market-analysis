@@ -1,7 +1,9 @@
 """Persistencia de la cartera en Postgres (Neon/Supabase u otro proveedor compatible), a través
 de la variable de entorno DATABASE_URL. Al ser una app de un único usuario no hay tabla de
 usuarios. La cartera se guarda como un historial de movimientos (aportaciones y retiradas) por
-instrumento en `portfolio_transactions`, no como una única compra por fondo."""
+instrumento en `portfolio_transactions`, no como una única compra por fondo. Cada movimiento se
+guarda en participaciones (`units`), no en euros: `amount` se conserva solo como euros históricos
+de movimientos antiguos que ya no se usan para el cálculo."""
 
 import os
 from contextlib import contextmanager
@@ -35,10 +37,14 @@ def _cursor(commit=False):
 
 
 def init_db():
-    """Crea las tablas si no existen, y migra la cartera del modelo antiguo (una compra por
-    fondo, tabla `portfolio_holdings`) al nuevo (histórico de movimientos) la primera vez que se
-    arranca con este código, para no perder los datos ya guardados. No hace nada (ni falla) si
-    DATABASE_URL no está configurada, para que el resto de la app siga funcionando sin cartera."""
+    """Crea las tablas si no existen. No hace nada (ni falla) si DATABASE_URL no está
+    configurada, para que el resto de la app siga funcionando sin cartera.
+
+    (La migración one-off del modelo antiguo —una compra por fondo, tabla `portfolio_holdings`—
+    al histórico de movimientos actual ya se ejecutó y esa tabla ya no existe. Se quitó el código
+    de migración de aquí a propósito: no aporta nada una vez hecha, y cada arranque que lo
+    ejecutaba innecesariamente era la única sospechosa razonable de un vaciado de datos que no
+    pudimos explicar de otro modo.)"""
     if not DATABASE_URL:
         return
     with _cursor(commit=True) as cur:
@@ -48,7 +54,8 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 name TEXT NOT NULL,
                 symbol TEXT NOT NULL,
-                amount DOUBLE PRECISION NOT NULL,
+                amount DOUBLE PRECISION,
+                units DOUBLE PRECISION,
                 transaction_date DATE NOT NULL
             )
             """
@@ -63,27 +70,11 @@ def init_db():
             """
         )
 
-        cur.execute(
-            "SELECT to_regclass('portfolio_holdings') AS exists, "
-            "(SELECT count(*) FROM portfolio_transactions) AS tx_count"
-        )
-        row = cur.fetchone()
-        if row["exists"] is not None and row["tx_count"] == 0:
-            cur.execute("SELECT name, symbol, invested, purchase_date FROM portfolio_holdings")
-            old_rows = cur.fetchall()
-            for old in old_rows:
-                cur.execute(
-                    "INSERT INTO portfolio_transactions (name, symbol, amount, transaction_date) "
-                    "VALUES (%s, %s, %s, %s)",
-                    (old["name"], old["symbol"], old["invested"], old["purchase_date"]),
-                )
-            cur.execute("DROP TABLE portfolio_holdings")
-
 
 def load_transactions() -> list[dict]:
     with _cursor() as cur:
         cur.execute(
-            "SELECT id, name, symbol, amount, transaction_date FROM portfolio_transactions "
+            "SELECT id, name, symbol, units, amount, transaction_date FROM portfolio_transactions "
             "ORDER BY name, transaction_date"
         )
         rows = cur.fetchall()
@@ -92,22 +83,23 @@ def load_transactions() -> list[dict]:
             "id": row["id"],
             "name": row["name"],
             "symbol": row["symbol"],
-            "amount": float(row["amount"]),
+            "units": float(row["units"]) if row["units"] is not None else None,
+            "amount": float(row["amount"]) if row["amount"] is not None else None,
             "date": row["transaction_date"].isoformat(),
         }
         for row in rows
     ]
 
 
-def add_transaction(name: str, symbol: str, amount: float, date: str) -> dict:
+def add_transaction(name: str, symbol: str, units: float, date: str) -> dict:
     with _cursor(commit=True) as cur:
         cur.execute(
-            "INSERT INTO portfolio_transactions (name, symbol, amount, transaction_date) "
+            "INSERT INTO portfolio_transactions (name, symbol, units, transaction_date) "
             "VALUES (%s, %s, %s, %s) RETURNING id",
-            (name, symbol, amount, date),
+            (name, symbol, units, date),
         )
         new_id = cur.fetchone()["id"]
-    return {"id": new_id, "name": name, "symbol": symbol, "amount": amount, "date": date}
+    return {"id": new_id, "name": name, "symbol": symbol, "units": units, "amount": None, "date": date}
 
 
 def delete_transaction(transaction_id: int) -> None:
