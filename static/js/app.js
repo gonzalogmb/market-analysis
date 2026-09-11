@@ -39,7 +39,10 @@ const state = {
   transactions: [],
   portfolioChart: null,
   lang: "es",
+  fundCollapsed: {},
 };
+
+const COLLAPSE_THRESHOLD = 5;
 
 const els = {
   tickerList: document.getElementById("ticker-list"),
@@ -144,6 +147,7 @@ const translations = {
     portfolioLoginHint: "Inicia sesión (botón arriba a la izquierda) para usar tu cartera personal.",
     fundNetLabel: "Participaciones netas",
     noMovements: "Sin movimientos todavía.",
+    movementsLabel: "movimientos",
     txDeposit: "Aportación",
     txWithdraw: "Retirada",
     txAddDeposit: "+ Aportar",
@@ -230,6 +234,7 @@ const translations = {
     portfolioLoginHint: "Log in (top-left button) to use your personal portfolio.",
     fundNetLabel: "Net units",
     noMovements: "No movements yet.",
+    movementsLabel: "movements",
     txDeposit: "Deposit",
     txWithdraw: "Withdrawal",
     txAddDeposit: "+ Deposit",
@@ -473,17 +478,35 @@ function renderManageList() {
     const txs = (grouped[name] ? grouped[name].transactions : []).slice().sort((a, b) => a.date.localeCompare(b.date));
     const net = txs.reduce((sum, tx) => sum + tx.units, 0);
 
+    if (!(name in state.fundCollapsed) && txs.length) {
+      state.fundCollapsed[name] = txs.length > COLLAPSE_THRESHOLD;
+    }
+    const collapsed = state.fundCollapsed[name];
+
     const card = document.createElement("div");
     card.className = "fund-manager";
 
     const header = document.createElement("div");
     header.className = "fund-manager-header";
     header.innerHTML = `<span class="fund-name" title="${name}">${name}</span><span class="fund-net">${t("fundNetLabel")}: ${fmtUnits(net)}</span>`;
+    if (txs.length > 0) {
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "fund-toggle";
+      toggle.setAttribute("aria-expanded", String(!collapsed));
+      toggle.innerHTML = `<span class="fund-toggle-chevron">${collapsed ? "▸" : "▾"}</span> ${txs.length} ${t("movementsLabel")}`;
+      toggle.addEventListener("click", () => {
+        state.fundCollapsed[name] = !state.fundCollapsed[name];
+        renderManageList();
+      });
+      header.appendChild(toggle);
+    }
     card.appendChild(header);
 
     if (txs.length) {
       const list = document.createElement("ul");
       list.className = "tx-list";
+      list.hidden = collapsed;
       txs.forEach((tx) => {
         const isDeposit = tx.units >= 0;
         const li = document.createElement("li");
