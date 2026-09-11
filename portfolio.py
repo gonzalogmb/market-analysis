@@ -216,6 +216,20 @@ def compute_portfolio(
 
     benchmark_aligned = _align(benchmark_series) if benchmark_series is not None else None
 
+    # Las series de cada fondo cubren todo su histórico de cotización (para poder alinear fechas
+    # entre fondos y benchmark), pero antes de la primera aportación real el valor es 0 para
+    # todos — recortamos esos años de "cartera vacía" para que el gráfico arranque en el primer
+    # movimiento real, no en el origen del histórico de precios.
+    nonzero_mask = portfolio_series != 0
+    if benchmark_aligned is not None:
+        nonzero_mask = nonzero_mask | (benchmark_aligned != 0)
+    if nonzero_mask.any():
+        start_pos = nonzero_mask.to_numpy().argmax()
+        master_index = master_index[start_pos:]
+        portfolio_series = portfolio_series.iloc[start_pos:]
+        if benchmark_aligned is not None:
+            benchmark_aligned = benchmark_aligned.iloc[start_pos:]
+
     series_records = []
     for i, date in enumerate(master_index):
         record = {"date": pd.Timestamp(date).strftime("%Y-%m-%d"), "portfolio": float(portfolio_series.iloc[i])}
