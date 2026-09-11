@@ -15,7 +15,6 @@ SCREENER_URL = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 TICKERS = {
-    "S&P 500": "^GSPC",
     "MyInvestor Value Clase C": "0P0001T8V7.F",
     "DJE Gold & Ressourcen PA (EUR) Dis": "0P00000HTQ.F",
 }
