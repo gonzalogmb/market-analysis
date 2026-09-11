@@ -1,10 +1,20 @@
 """Servidor Flask: expone los datos de Yahoo Finance como JSON para la UI en static/ y templates/."""
 
+import functools
 import math
 import os
+import secrets
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
+import db
 from fetch_yahoo_data import (
     BASE_CURRENCY,
     TICKERS,
@@ -18,11 +28,74 @@ from indicators import correlation_matrix, stats_summary
 from portfolio import compute_portfolio
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
+
+APP_PASSWORD = os.environ.get("APP_PASSWORD")
 
 RANGES = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "ytd", "max"]
 INTERVALS = ["1d", "1wk", "1mo"]
 BENCHMARK_SYMBOL = "^GSPC"
 BENCHMARK_NAME = "S&P 500"
+
+try:
+    db.init_db()
+except Exception as exc:  # noqa: BLE001
+    print(f"Aviso: no se pudo inicializar la base de datos de la cartera: {exc}")
+
+
+def login_required(view):
+    @functools.wraps(view)
+    def wrapped(*args, **kwargs):
+        if APP_PASSWORD and not session.get("authenticated"):
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "No has iniciado sesión."}), 401
+            return redirect(url_for("login", next=request.path))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def _client_ip():
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    return forwarded.split(",")[0].strip() if forwarded else (request.remote_addr or "unknown")
+
+
+def _lockout_message(remaining_seconds):
+    minutes = max(1, remaining_seconds // 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"Demasiados intentos fallidos. Inténtalo de nuevo en {hours}h {minutes}min."
+    return f"Demasiados intentos fallidos. Inténtalo de nuevo en {minutes} min."
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    ip = _client_ip()
+    error = None
+    locked, remaining = db.is_locked_out(ip)
+
+    if request.method == "POST":
+        if locked:
+            error = _lockout_message(remaining)
+        else:
+            password = request.form.get("password", "")
+            if APP_PASSWORD and secrets.compare_digest(password, APP_PASSWORD):
+                db.clear_failed_logins(ip)
+                session["authenticated"] = True
+                return redirect(request.args.get("next") or url_for("index"))
+            db.record_failed_login(ip)
+            locked, remaining = db.is_locked_out(ip)
+            error = _lockout_message(remaining) if locked else "Contraseña incorrecta."
+    elif locked:
+        error = _lockout_message(remaining)
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 def _clean(value):
@@ -58,7 +131,14 @@ def _history_records(df):
 
 @app.route("/")
 def index():
-    return render_template("index.html", defaults=TICKERS, ranges=RANGES, intervals=INTERVALS)
+    return render_template(
+        "index.html",
+        defaults=TICKERS,
+        ranges=RANGES,
+        intervals=INTERVALS,
+        login_enabled=bool(APP_PASSWORD),
+        authenticated=bool(session.get("authenticated")),
+    )
 
 
 @app.route("/api/search")
@@ -112,6 +192,7 @@ def api_generate():
 
 
 @app.route("/api/portfolio", methods=["POST"])
+@login_required
 def api_portfolio():
     payload = request.get_json(silent=True) or {}
     holdings_input = payload.get("holdings") or []
@@ -142,6 +223,41 @@ def api_portfolio():
     result["base_currency"] = BASE_CURRENCY
     result["currency_warnings"] = unconverted
     return jsonify(_clean_deep(result))
+
+
+@app.route("/api/portfolio/holdings", methods=["GET"])
+@login_required
+def api_get_holdings():
+    try:
+        return jsonify(db.load_holdings())
+    except db.DatabaseNotConfigured:
+        return jsonify({"error": "El servidor no tiene configurada la base de datos (DATABASE_URL)."}), 503
+
+
+@app.route("/api/portfolio/holdings", methods=["PUT"])
+@login_required
+def api_save_holdings():
+    payload = request.get_json(silent=True) or {}
+    holdings = payload.get("holdings")
+    if not isinstance(holdings, list):
+        return jsonify({"error": "Formato inválido: se esperaba una lista de posiciones."}), 400
+
+    for h in holdings:
+        if not h.get("name") or not h.get("symbol") or not h.get("date"):
+            return jsonify({"error": "Cada posición necesita nombre, símbolo y fecha."}), 400
+        try:
+            h["invested"] = float(h.get("invested"))
+        except (TypeError, ValueError):
+            return jsonify({"error": "El importe invertido debe ser numérico."}), 400
+        if h["invested"] <= 0:
+            return jsonify({"error": "El importe invertido debe ser mayor que 0."}), 400
+
+    try:
+        db.save_holdings(holdings)
+    except db.DatabaseNotConfigured:
+        return jsonify({"error": "El servidor no tiene configurada la base de datos (DATABASE_URL)."}), 503
+
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

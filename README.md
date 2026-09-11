@@ -22,11 +22,14 @@ Herramienta en Python para consultar datos de mercado (índices y fondos de inve
   - `annualized_return(close)` / `annualized_volatility(close)` / `sharpe_ratio(close)` / `max_drawdown(close)`: métricas sobre todo el periodo descargado (retorno anualizado calculado de forma geométrica).
   - `stats_summary(histories)`: `DataFrame` con esas métricas para todos los instrumentos.
   - `correlation_matrix(histories)`: matriz de correlación entre los retornos diarios de los instrumentos, alineados por fecha.
+- [`db.py`](db.py) — persistencia de la cartera en Postgres (Neon, Supabase o similar), vía la variable de entorno `DATABASE_URL`. Al ser una app de un único usuario, la tabla `portfolio_holdings` no tiene columna de usuario: `save_holdings(holdings)` reemplaza su contenido completo en cada guardado y `load_holdings()` lo devuelve.
 - [`server.py`](server.py) — backend web con [Flask](https://flask.palletsprojects.com/): sirve la página (`templates/index.html`) y expone la API JSON que la usa —
+  - `GET/POST /login`, `POST /logout`: login con una única contraseña (`APP_PASSWORD`), guardada en la cookie de sesión firmada con `SECRET_KEY`. Si `APP_PASSWORD` no está definida, el login queda desactivado (todas las rutas quedan abiertas — útil para desarrollo local rápido). Tras 3 intentos fallidos desde la misma IP, el login se bloquea 5 horas (el contador se guarda en la tabla `login_attempts` de Postgres, así que el bloqueo persiste aunque el servidor reinicie).
   - `GET /api/search?q=...`: autocompletado de instrumentos vía `search_symbols` de Yahoo Finance.
   - `POST /api/generate`: recibe `{tickers, range, interval}` y devuelve resumen, estadísticas, correlación e históricos (con indicadores) en JSON, listos para pintar en el navegador.
   - `POST /api/portfolio`: recibe `{holdings: [{name, symbol, invested, date}, ...]}` y devuelve, en EUR, el valor y ganancia de cada posición, los totales de la cartera, una cartera "espejo" en el S&P 500 (mismos importes/fechas) para comparar, y la serie temporal de ambas para el gráfico. Cuando un instrumento cotiza en otra divisa, se convierte a EUR con el tipo de cambio histórico de Yahoo Finance; si no se puede obtener ese tipo de cambio, se avisa en `currency_warnings` y el importe se deja sin convertir.
-- [`templates/index.html`](templates/index.html) / [`static/`](static/) — UI web: barra lateral para buscar y seleccionar instrumentos (con autocompletado), rango e intervalo, y una sección **Mi cartera** para introducir importe invertido y fecha de compra por instrumento; panel principal con pestañas Resumen / Estadísticas / Correlación / Gráficos / Mi cartera. Los gráficos de precio+SMA/EMA/RSI y el de cartera vs S&P 500 se dibujan en el navegador con [Chart.js](https://www.chartjs.org/) (interactivos: tooltip, leyenda) y el heatmap de correlación como una cuadrícula HTML/CSS coloreada por valor. Los importes y fechas de "Mi cartera" se guardan en el `localStorage` del navegador (no hay backend con estado ni login).
+  - `GET /api/portfolio/holdings`, `PUT /api/portfolio/holdings`: cargar y guardar (reemplazando todo) las posiciones de la cartera en la base de datos.
+- [`templates/index.html`](templates/index.html) / [`static/`](static/) — UI web: barra lateral para buscar y seleccionar instrumentos (con autocompletado), rango e intervalo, y una sección **Mi cartera** para introducir importe invertido y fecha de compra por instrumento; panel principal con pestañas Resumen / Estadísticas / Correlación / Gráficos / Mi cartera. Los gráficos de precio+SMA/EMA/RSI y el de cartera vs S&P 500 se dibujan en el navegador con [Chart.js](https://www.chartjs.org/) (interactivos: tooltip, leyenda) y el heatmap de correlación como una cuadrícula HTML/CSS coloreada por valor. Los importes y fechas de "Mi cartera" se guardan en la base de datos del servidor (no en el navegador), así que persisten igual entre dispositivos.
 
 ## Uso
 
@@ -38,7 +41,20 @@ Se abre en `http://localhost:5000`. En la barra lateral ves los instrumentos sel
 
 ### Mi cartera
 
-En la sección **Mi cartera** de la barra lateral, para cada instrumento seleccionado puedes indicar cuánto invertiste y en qué fecha. Al pulsar **Calcular cartera** se muestra, en la pestaña *Mi cartera*: el total invertido, el valor actual y la ganancia €/% de cada posición y del conjunto, cómo le habría ido a ese mismo dinero invertido en el S&P 500 en las mismas fechas, y un gráfico con la evolución de ambas carteras en el tiempo. Los datos se guardan en el navegador, así que persisten entre visitas sin necesidad de cuenta.
+En la sección **Mi cartera** de la barra lateral, para cada instrumento seleccionado puedes indicar cuánto invertiste y en qué fecha; se guarda automáticamente en el servidor (con un pequeño retraso tras dejar de escribir). Al pulsar **Calcular cartera** se muestra, en la pestaña *Mi cartera*: el total invertido, el valor actual y la ganancia €/% de cada posición y del conjunto, cómo le habría ido a ese mismo dinero invertido en el S&P 500 en las mismas fechas, y un gráfico con la evolución de ambas carteras en el tiempo.
+
+### Login y variables de entorno
+
+La app admite proteger todo el sitio con una única contraseña y guardar la cartera en una base de datos Postgres. Copia [`.env.example`](.env.example) a `.env` (no se sube a git) y rellena:
+
+- `APP_PASSWORD`: la contraseña para entrar. Si la dejas vacía, no hay login (útil en local).
+- `SECRET_KEY`: cualquier cadena larga y aleatoria, para firmar la cookie de sesión.
+- `DATABASE_URL`: cadena de conexión a una Postgres. Para tener una gratis en minutos:
+  1. Crea una cuenta en [neon.tech](https://neon.tech) (o [supabase.com](https://supabase.com)) y un proyecto nuevo.
+  2. Copia la "connection string" que te dan (formato `postgresql://usuario:contraseña@host/basededatos`) en `DATABASE_URL`.
+  3. La tabla se crea sola la primera vez que arranca el servidor.
+
+En Render, configura estas mismas variables en el dashboard del servicio (Settings → Environment) en vez de en un `.env`.
 
 ## Instrumentos por defecto
 

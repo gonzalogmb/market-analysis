@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Market Analysis · Login</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem("market-analysis-theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+<div class="login-page">
+  <form class="login-card" method="post">
+    <h1 class="brand">📈 Market Analysis</h1>
+    <p class="subtitle">Introduce la contraseña para continuar</p>
+    <input type="password" name="password" placeholder="Contraseña" autofocus autocomplete="current-password" />
+    {% if error %}<p class="status-msg error">{{ error }}</p>{% endif %}
+    <button type="submit" class="btn-primary">Entrar</button>
+  </form>
+</div>
+</body>
+</html>

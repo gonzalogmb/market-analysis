@@ -20,6 +20,8 @@ function getPalette() {
   };
 }
 
+const canUseCartera = !window.__LOGIN_ENABLED__ || !!window.__AUTHENTICATED__;
+
 const state = {
   selected: { ...(window.__DEFAULTS__ || {}) },
   charts: [],
@@ -119,6 +121,11 @@ const translations = {
     portfolioSeriesLabel: "Tu cartera",
     benchmarkSeriesLabel: "S&P 500 (mismo importe/fechas)",
     currencyWarning: "No se pudo convertir a EUR el tipo de cambio de: ",
+    logout: "Cerrar sesión",
+    loginBtn: "🔒 Iniciar sesión",
+    portfolioSaveError: "No se pudo guardar la cartera en el servidor.",
+    portfolioLoadError: "No se pudo cargar tu cartera guardada.",
+    portfolioLoginHint: "🔒 Inicia sesión (botón arriba a la izquierda) para usar tu cartera personal.",
     portfolioCols: {
       name: "Nombre",
       invested: "Invertido",
@@ -193,6 +200,11 @@ const translations = {
       gain_pct: "Gain %",
       weight_pct: "Weight %",
     },
+    logout: "Log out",
+    loginBtn: "🔒 Log in",
+    portfolioSaveError: "Could not save the portfolio on the server.",
+    portfolioLoadError: "Could not load your saved portfolio.",
+    portfolioLoginHint: "🔒 Log in (top-left button) to use your personal portfolio.",
   },
 };
 
@@ -232,6 +244,8 @@ function applyLanguage(lang) {
   if (!els.generateBtn.disabled) {
     els.generateBtn.textContent = t("generate");
   }
+
+  if (!canUseCartera) els.portfolioEmpty.textContent = t("portfolioLoginHint");
 
   renderTickerList();
   if (state.lastStats) renderStats(state.lastStats);
@@ -340,28 +354,66 @@ function renderTickerList() {
 }
 
 // ---------- Mi cartera ----------
+// El estado de la cartera (importe invertido + fecha por instrumento) se guarda en el servidor
+// (tabla portfolio_holdings), no en localStorage, para que persista igual entre dispositivos.
 
-const PORTFOLIO_KEY = "market-analysis-portfolio";
+function buildHoldingsPayload() {
+  return Object.entries(state.portfolio)
+    .map(([name, entry]) => ({ name, symbol: state.selected[name], invested: entry.invested, date: entry.date }))
+    .filter((h) => h.symbol && h.invested > 0 && h.date);
+}
 
-function loadPortfolioState() {
+let saveHoldingsDebounce = null;
+function scheduleSaveHoldings() {
+  clearTimeout(saveHoldingsDebounce);
+  saveHoldingsDebounce = setTimeout(saveHoldingsNow, 600);
+}
+
+async function saveHoldingsNow() {
   try {
-    const raw = localStorage.getItem(PORTFOLIO_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    return {};
+    const res = await fetch("/api/portfolio/holdings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ holdings: buildHoldingsPayload() }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setPortfolioStatus(data.error || t("portfolioSaveError"), "error");
+      return;
+    }
+    setPortfolioStatus("");
+  } catch (err) {
+    setPortfolioStatus(t("portfolioSaveError"), "error");
   }
 }
 
-function savePortfolioState() {
+async function loadPortfolioFromServer() {
   try {
-    localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(state.portfolio));
-  } catch (e) {}
+    const res = await fetch("/api/portfolio/holdings");
+    if (!res.ok) return;
+    const holdings = await res.json();
+    if (!Array.isArray(holdings)) return;
+    holdings.forEach((h) => {
+      if (!(h.name in state.selected)) state.selected[h.name] = h.symbol;
+      state.portfolio[h.name] = { invested: h.invested, date: h.date };
+    });
+    renderTickerList();
+  } catch (err) {
+    setPortfolioStatus(t("portfolioLoadError"), "error");
+  }
 }
-
-state.portfolio = loadPortfolioState();
 
 function renderPortfolioInputs() {
   els.portfolioInputs.innerHTML = "";
+
+  if (!canUseCartera) {
+    const p = document.createElement("p");
+    p.className = "portfolio-login-hint";
+    p.textContent = t("portfolioLoginHint");
+    els.portfolioInputs.appendChild(p);
+    return;
+  }
+
   const names = Object.keys(state.selected);
 
   // Descarta entradas de instrumentos que ya no están seleccionados.
@@ -372,7 +424,7 @@ function renderPortfolioInputs() {
       changed = true;
     }
   });
-  if (changed) savePortfolioState();
+  if (changed) scheduleSaveHoldings();
 
   if (names.length === 0) {
     const p = document.createElement("p");
@@ -406,7 +458,7 @@ function renderPortfolioInputs() {
       } else {
         delete state.portfolio[name];
       }
-      savePortfolioState();
+      scheduleSaveHoldings();
     };
     investedInput.addEventListener("input", update);
     dateInput.addEventListener("change", update);
@@ -426,9 +478,7 @@ function setPortfolioStatus(message, type) {
 }
 
 els.portfolioBtn.addEventListener("click", async () => {
-  const holdings = Object.entries(state.portfolio)
-    .map(([name, entry]) => ({ name, symbol: state.selected[name], invested: entry.invested, date: entry.date }))
-    .filter((h) => h.symbol && h.invested > 0 && h.date);
+  const holdings = buildHoldingsPayload();
 
   if (!holdings.length) {
     setPortfolioStatus(t("portfolioEmptyError"), "error");
@@ -899,5 +949,12 @@ function renderTopGainers(rows) {
   });
 }
 
+if (!canUseCartera) {
+  els.portfolioBtn.hidden = true;
+  els.portfolioEmpty.textContent = t("portfolioLoginHint");
+  document.querySelector(".portfolio-chart-card").hidden = true;
+}
+
 renderTickerList();
 loadTopGainers();
+if (canUseCartera) loadPortfolioFromServer();
