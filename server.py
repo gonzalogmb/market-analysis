@@ -29,6 +29,7 @@ from portfolio import compute_portfolio
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 APP_PASSWORD = os.environ.get("APP_PASSWORD")
 

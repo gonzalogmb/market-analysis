@@ -49,12 +49,13 @@ const els = {
   intervalSelect: document.getElementById("interval-select"),
   generateBtn: document.getElementById("generate-btn"),
   statusMsg: document.getElementById("status-msg"),
-  emptyState: document.getElementById("empty-state"),
-  results: document.getElementById("results"),
+  marketHints: document.querySelectorAll(".market-empty-hint"),
   summaryCards: document.getElementById("summary-cards"),
   statsTable: document.getElementById("stats-table"),
+  statsWrap: document.querySelector("#tab-stats .table-wrap"),
   corrHeatmap: document.getElementById("corr-heatmap"),
   corrTable: document.getElementById("corr-table"),
+  corrLayout: document.querySelector("#tab-corr .corr-layout"),
   chartsGrid: document.getElementById("charts-grid"),
   themeToggle: document.getElementById("theme-toggle"),
   langEnBtn: document.getElementById("lang-en"),
@@ -66,6 +67,8 @@ const els = {
   portfolioWarning: document.getElementById("portfolio-warning"),
   portfolioSummary: document.getElementById("portfolio-summary"),
   portfolioTable: document.getElementById("portfolio-table"),
+  portfolioTableWrap: document.querySelector(".portfolio-table-wrap"),
+  portfolioChartCard: document.querySelector(".portfolio-chart-card"),
   portfolioCanvas: document.getElementById("portfolio-canvas"),
 };
 
@@ -123,10 +126,11 @@ const translations = {
     calcPortfolio: "Calcular cartera",
     calculating: "Calculando...",
     investedPlaceholder: "Importe €",
-    portfolioNoneSelected: "Elige instrumentos arriba para poder añadirlos a tu cartera.",
+    portfolioIntro: "Indica cuánto invertiste y en qué fecha, por instrumento.",
+    portfolioNoneSelected: "Elige instrumentos en la barra lateral para poder añadirlos a tu cartera.",
     portfolioEmptyError: "Añade importe invertido y fecha de compra a al menos un instrumento.",
     tabPortfolio: "Mi cartera",
-    portfolioEmpty: "Añade importe invertido y fecha de compra a tus instrumentos en la barra lateral y pulsa Calcular cartera.",
+    portfolioEmpty: "Añade importe invertido y fecha de compra a tus instrumentos y pulsa Calcular cartera.",
     portfolioChartTitle: "Cartera vs S&P 500",
     totalInvested: "Invertido",
     currentValue: "Valor actual",
@@ -192,10 +196,11 @@ const translations = {
     calcPortfolio: "Calculate portfolio",
     calculating: "Calculating...",
     investedPlaceholder: "Amount €",
-    portfolioNoneSelected: "Choose instruments above to add them to your portfolio.",
+    portfolioIntro: "Enter how much you invested and when, per instrument.",
+    portfolioNoneSelected: "Choose instruments in the sidebar to add them to your portfolio.",
     portfolioEmptyError: "Add an invested amount and purchase date to at least one instrument.",
     tabPortfolio: "My portfolio",
-    portfolioEmpty: "Add an invested amount and purchase date to your instruments in the sidebar, then click Calculate portfolio.",
+    portfolioEmpty: "Add an invested amount and purchase date to your instruments, then click Calculate portfolio.",
     portfolioChartTitle: "Portfolio vs S&P 500",
     totalInvested: "Invested",
     currentValue: "Current value",
@@ -452,13 +457,11 @@ function renderPortfolioInputs() {
   names.forEach((name) => {
     const entry = state.portfolio[name] || {};
     const row = document.createElement("div");
-    row.className = "portfolio-row";
+    row.className = "portfolio-form-row";
     row.innerHTML = `
-      <span class="portfolio-name" title="${name}">${name}</span>
-      <div class="portfolio-fields">
-        <input type="number" class="portfolio-invested" min="0" step="0.01" placeholder="${t("investedPlaceholder")}" />
-        <input type="date" class="portfolio-date" />
-      </div>
+      <span class="pf-name" title="${name}">${name}</span>
+      <input type="number" class="portfolio-invested" min="0" step="0.01" placeholder="${t("investedPlaceholder")}" />
+      <input type="date" class="portfolio-date" />
     `;
     const investedInput = row.querySelector(".portfolio-invested");
     const dateInput = row.querySelector(".portfolio-date");
@@ -514,8 +517,6 @@ els.portfolioBtn.addEventListener("click", async () => {
       return;
     }
     state.lastPortfolio = data;
-    els.emptyState.hidden = true;
-    els.results.hidden = false;
     renderPortfolio(data);
     document.querySelector('.tab-btn[data-tab="portfolio"]')?.click();
   } catch (err) {
@@ -528,6 +529,8 @@ els.portfolioBtn.addEventListener("click", async () => {
 
 function renderPortfolio(data) {
   els.portfolioEmpty.hidden = true;
+  els.portfolioTableWrap.hidden = false;
+  els.portfolioChartCard.hidden = false;
   els.portfolioSummary.innerHTML = "";
   els.portfolioTable.innerHTML = "";
 
@@ -726,8 +729,9 @@ els.generateBtn.addEventListener("click", async () => {
 });
 
 function renderResults(data) {
-  els.emptyState.hidden = true;
-  els.results.hidden = false;
+  els.marketHints.forEach((el) => (el.hidden = true));
+  els.statsWrap.hidden = false;
+  els.corrLayout.hidden = false;
   state.lastHistories = data.histories;
   state.lastCorr = data.corr;
   state.lastStats = data.stats;
@@ -967,7 +971,6 @@ function renderTopGainers(rows) {
 if (!canUseCartera) {
   els.portfolioBtn.hidden = true;
   els.portfolioEmpty.textContent = t("portfolioLoginHint");
-  document.querySelector(".portfolio-chart-card").hidden = true;
 }
 
 renderTickerList();

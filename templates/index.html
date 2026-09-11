@@ -56,15 +56,6 @@
     <hr />
 
     <section class="side-section">
-      <h2><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="myPortfolio">Mi cartera</span></h2>
-      <div id="portfolio-inputs" class="portfolio-inputs"></div>
-      <button id="portfolio-btn" class="btn-outline" type="button"><svg class="icon"><use href="#i-bolt"/></svg><span class="btn-label" data-i18n="calcPortfolio">Calcular cartera</span></button>
-      <p id="portfolio-status" class="status-msg" hidden></p>
-    </section>
-
-    <hr />
-
-    <section class="side-section">
       <h2><svg class="icon"><use href="#i-search"/></svg><span data-i18n="searchInstrument">Buscar instrumento</span></h2>
       <input id="search-input" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="ej. Apple, oro, S&amp;P 500..." autocomplete="off" />
       <div id="search-results" class="search-results" hidden></div>
@@ -104,9 +95,7 @@
       </div>
     </section>
 
-    <div id="empty-state" class="empty-state" data-i18n-html="emptyStateHtml">Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</div>
-
-    <div id="results" class="results" hidden>
+    <div id="results" class="results">
       <nav class="tabs">
         <button class="tab-btn active" data-tab="resumen"><svg class="icon"><use href="#i-summary"/></svg><span data-i18n="tabResumen">Resumen</span></button>
         <button class="tab-btn" data-tab="stats"><svg class="icon"><use href="#i-stats"/></svg><span data-i18n="tabStats">Estadísticas</span></button>
@@ -116,30 +105,40 @@
       </nav>
 
       <section id="tab-resumen" class="tab-panel active">
+        <p class="market-empty-hint" data-i18n-html="emptyStateHtml">Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</p>
         <div id="summary-cards" class="cards-grid"></div>
       </section>
 
       <section id="tab-stats" class="tab-panel">
-        <div class="table-wrap"><table id="stats-table"></table></div>
+        <p class="market-empty-hint" data-i18n-html="emptyStateHtml">Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</p>
+        <div class="table-wrap" hidden><table id="stats-table"></table></div>
       </section>
 
       <section id="tab-corr" class="tab-panel">
-        <div class="corr-layout">
+        <p class="market-empty-hint" data-i18n-html="emptyStateHtml">Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</p>
+        <div class="corr-layout" hidden>
           <div id="corr-heatmap" class="heatmap"></div>
           <div class="table-wrap"><table id="corr-table"></table></div>
         </div>
       </section>
 
       <section id="tab-charts" class="tab-panel">
+        <p class="market-empty-hint" data-i18n-html="emptyStateHtml">Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</p>
         <div id="charts-grid" class="charts-grid"></div>
       </section>
 
       <section id="tab-portfolio" class="tab-panel">
-        <p id="portfolio-empty" class="corr-empty" data-i18n="portfolioEmpty">Añade importe invertido y fecha de compra a tus instrumentos en la barra lateral y pulsa Calcular cartera.</p>
+        <p class="portfolio-intro" data-i18n="portfolioIntro">Indica cuánto invertiste y en qué fecha, por instrumento.</p>
+        <div id="portfolio-inputs" class="portfolio-form"></div>
+        <div class="portfolio-form-actions">
+          <button id="portfolio-btn" class="btn-outline" type="button"><svg class="icon"><use href="#i-bolt"/></svg><span class="btn-label" data-i18n="calcPortfolio">Calcular cartera</span></button>
+        </div>
+        <p id="portfolio-status" class="status-msg" hidden></p>
+        <p id="portfolio-empty" class="corr-empty" data-i18n="portfolioEmpty">Añade importe invertido y fecha de compra a tus instrumentos y pulsa Calcular cartera.</p>
         <p id="portfolio-warning" class="status-msg" hidden></p>
         <div id="portfolio-summary" class="cards-grid"></div>
-        <div class="table-wrap portfolio-table-wrap"><table id="portfolio-table"></table></div>
-        <div class="chart-card portfolio-chart-card">
+        <div class="table-wrap portfolio-table-wrap" hidden><table id="portfolio-table"></table></div>
+        <div class="chart-card portfolio-chart-card" hidden>
           <h3><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="portfolioChartTitle">Cartera vs S&amp;P 500</span></h3>
           <div class="portfolio-canvas-wrap"><canvas id="portfolio-canvas"></canvas></div>
         </div>

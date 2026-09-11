@@ -262,12 +262,12 @@ label { display: block; font-weight: 600; font-size: 0.9em; margin: 0.4rem 0 0.2
 .status-msg.success { background: var(--success-bg); color: var(--good); }
 
 .btn-outline {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  width: 100%;
-  padding: 0.6rem;
+  width: auto;
+  padding: 0.6rem 1.2rem;
   background: transparent;
   color: var(--primary);
   border: 1px solid var(--primary);
@@ -281,21 +281,36 @@ label { display: block; font-weight: 600; font-size: 0.9em; margin: 0.4rem 0 0.2
 .btn-outline:hover { background: color-mix(in srgb, var(--primary) 10%, transparent); }
 .btn-outline:active { transform: translateY(1px); }
 .btn-outline:disabled { opacity: 0.6; cursor: default; transform: none; }
+.btn-outline[hidden] { display: none; }
 
-.portfolio-inputs { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.6rem; }
-.portfolio-empty-hint { color: var(--muted); font-size: 0.85em; }
-.portfolio-row { display: flex; flex-direction: column; gap: 0.25rem; }
-.portfolio-row .portfolio-name {
-  font-size: 0.82em;
-  font-weight: 600;
+.portfolio-intro { color: var(--secondary); font-size: 0.92em; margin: 0 0 1rem; }
+
+.portfolio-form { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+.portfolio-empty-hint { color: var(--muted); font-size: 0.9em; }
+
+.portfolio-form-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+}
+.portfolio-form-row .pf-name {
+  flex: 0 1 260px;
+  min-width: 140px;
+  font-weight: 700;
+  font-size: 0.92em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.portfolio-fields { display: flex; gap: 0.35rem; }
-.portfolio-fields input { margin-bottom: 0; font-size: 0.85em; padding: 0.4rem 0.5rem; font-variant-numeric: tabular-nums; }
-.portfolio-fields .portfolio-invested { flex: 1.1; min-width: 0; }
-.portfolio-fields .portfolio-date { flex: 1.4; min-width: 0; }
+.portfolio-form-row input[type="number"] { flex: 0 0 140px; margin-bottom: 0; font-variant-numeric: tabular-nums; }
+.portfolio-form-row input[type="date"] { flex: 0 0 160px; margin-bottom: 0; }
+
+.portfolio-form-actions { margin-bottom: 0.6rem; }
 
 .sidebar-footer {
   margin: auto 0 0;
@@ -306,7 +321,7 @@ label { display: block; font-weight: 600; font-size: 0.9em; margin: 0.4rem 0 0.2
 }
 
 .content { flex: 1; min-width: 0; padding: 2rem 2.5rem; }
-.empty-state { color: var(--secondary); font-size: 1.05em; }
+.market-empty-hint { color: var(--secondary); font-size: 1.05em; }
 
 .top-gainers { margin-bottom: 2rem; }
 .section-title { display: flex; align-items: center; gap: 0.45rem; font-size: 1em; font-weight: 700; margin: 0 0 0.7rem; }
@@ -413,6 +428,7 @@ th { color: var(--muted); font-weight: 700; font-size: 0.85em; text-transform: u
 }
 
 .corr-layout { display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; }
+.corr-layout[hidden] { display: none; }
 .heatmap { display: inline-grid; gap: 2px; }
 .heatmap-cell {
   width: 52px;
