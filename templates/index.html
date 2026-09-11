@@ -18,17 +18,6 @@
 </script>
 </head>
 <body>
-{% if login_enabled %}
-<div class="top-left-controls">
-  {% if authenticated %}
-  <form method="post" action="{{ url_for('logout') }}">
-    <button type="submit" class="auth-btn" data-i18n="logout">🔓 Cerrar sesión</button>
-  </form>
-  {% else %}
-  <a href="{{ url_for('login') }}" class="auth-btn" data-i18n="loginBtn">🔒 Iniciar sesión</a>
-  {% endif %}
-</div>
-{% endif %}
 <div class="top-controls">
   <div class="lang-toggle" role="group" aria-label="Language selector">
     <button id="lang-en" class="lang-btn" type="button" title="Switch to English" aria-label="English">
@@ -42,6 +31,17 @@
 </div>
 <div class="app">
   <aside class="sidebar">
+    {% if login_enabled %}
+    <div class="auth-row">
+      {% if authenticated %}
+      <form method="post" action="{{ url_for('logout') }}">
+        <button type="submit" class="auth-btn" data-i18n="logout">🔓 Cerrar sesión</button>
+      </form>
+      {% else %}
+      <a href="{{ url_for('login') }}" class="auth-btn" data-i18n="loginBtn">🔒 Iniciar sesión</a>
+      {% endif %}
+    </div>
+    {% endif %}
     <h1 class="brand">📈 Market Analysis</h1>
     <p class="subtitle" data-i18n="subtitle">Yahoo Finance · indicadores · correlaciones</p>
 
