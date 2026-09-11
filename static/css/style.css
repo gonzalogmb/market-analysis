@@ -557,7 +557,7 @@ th { color: var(--muted); font-weight: 700; font-size: 0.85em; text-transform: u
 .rsi-canvas-wrap { position: relative; height: 90px; margin-top: 0.4rem; }
 .price-canvas-wrap canvas, .rsi-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
 
-.portfolio-table-wrap { margin-bottom: 1.2rem; }
+.portfolio-table-wrap { margin-bottom: 1.2rem;margin-top:1.2rem; }
 .portfolio-chart-card { margin-top: 0; }
 .portfolio-canvas-wrap { position: relative; height: 300px; }
 .portfolio-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
