@@ -37,16 +37,27 @@ def fetch_chart(symbol: str, range_: str = "5d", interval: str = "1d") -> dict:
 
 
 def chart_to_dataframe(result: dict) -> pd.DataFrame:
+    """Algunos símbolos (sobre todo fondos listados en bolsas alemanas, p.ej. sufijo .SG/.F) traen
+    en Yahoo Finance un histórico incompleto que no incluye open/high/low/volume para todas las
+    fechas, o directamente ninguno de esos campos. Solo necesitamos el cierre, así que el resto se
+    trata como opcional en vez de asumir que siempre viene."""
     quote = result["indicators"]["quote"][0]
+    index = pd.to_datetime(result["timestamp"], unit="s", utc=True)
+    n = len(index)
+
+    def _column(key):
+        values = quote.get(key)
+        return values if values is not None else [None] * n
+
     df = pd.DataFrame(
         {
-            "Open": quote["open"],
-            "High": quote["high"],
-            "Low": quote["low"],
-            "Close": quote["close"],
-            "Volume": quote["volume"],
+            "Open": _column("open"),
+            "High": _column("high"),
+            "Low": _column("low"),
+            "Close": _column("close"),
+            "Volume": _column("volume"),
         },
-        index=pd.to_datetime(result["timestamp"], unit="s", utc=True),
+        index=index,
     )
     df.index.name = "Date"
     tz = result["meta"].get("exchangeTimezoneName")

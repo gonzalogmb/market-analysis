@@ -220,14 +220,22 @@ def api_portfolio():
 
     closes = {}
     unconverted = []
-    try:
-        for symbol in symbols:
+    failed = []
+    for symbol in symbols:
+        try:
             close, converted = fetch_full_close_in_base(symbol)
-            closes[symbol] = close
-            if not converted:
-                unconverted.append(symbol)
-    except Exception as exc:  # noqa: BLE001
-        return jsonify({"error": f"Error al descargar datos: {exc}"}), 502
+        except Exception:  # noqa: BLE001
+            # Un símbolo con datos incompletos o inválidos en Yahoo no debe tirar abajo el cálculo
+            # de toda la cartera: se descarta solo ese fondo (compute_portfolio ya lo reporta en
+            # "skipped") y se sigue con el resto.
+            failed.append(symbol)
+            continue
+        closes[symbol] = close
+        if not converted:
+            unconverted.append(symbol)
+
+    if BENCHMARK_SYMBOL not in closes:
+        return jsonify({"error": "No se pudieron descargar los datos del S&P 500 (benchmark)."}), 502
 
     benchmark_close = closes.get(BENCHMARK_SYMBOL)
     result = compute_portfolio(holdings_input, closes, benchmark_close, BENCHMARK_NAME)
