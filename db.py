@@ -1,6 +1,7 @@
 """Persistencia de la cartera en Postgres (Neon/Supabase u otro proveedor compatible), a través
 de la variable de entorno DATABASE_URL. Al ser una app de un único usuario no hay tabla de
-usuarios: la tabla `portfolio_holdings` reemplaza por completo su contenido en cada guardado."""
+usuarios. La cartera se guarda como un historial de movimientos (aportaciones y retiradas) por
+instrumento en `portfolio_transactions`, no como una única compra por fondo."""
 
 import os
 from contextlib import contextmanager
@@ -34,18 +35,21 @@ def _cursor(commit=False):
 
 
 def init_db():
-    """Crea la tabla si no existe. No hace nada (ni falla) si DATABASE_URL no está configurada,
-    para que el resto de la app (datos de mercado) siga funcionando sin persistencia de cartera."""
+    """Crea las tablas si no existen, y migra la cartera del modelo antiguo (una compra por
+    fondo, tabla `portfolio_holdings`) al nuevo (histórico de movimientos) la primera vez que se
+    arranca con este código, para no perder los datos ya guardados. No hace nada (ni falla) si
+    DATABASE_URL no está configurada, para que el resto de la app siga funcionando sin cartera."""
     if not DATABASE_URL:
         return
     with _cursor(commit=True) as cur:
         cur.execute(
             """
-            CREATE TABLE IF NOT EXISTS portfolio_holdings (
-                name TEXT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS portfolio_transactions (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
                 symbol TEXT NOT NULL,
-                invested DOUBLE PRECISION NOT NULL,
-                purchase_date DATE NOT NULL
+                amount DOUBLE PRECISION NOT NULL,
+                transaction_date DATE NOT NULL
             )
             """
         )
@@ -59,31 +63,56 @@ def init_db():
             """
         )
 
+        cur.execute(
+            "SELECT to_regclass('portfolio_holdings') AS exists, "
+            "(SELECT count(*) FROM portfolio_transactions) AS tx_count"
+        )
+        row = cur.fetchone()
+        if row["exists"] is not None and row["tx_count"] == 0:
+            cur.execute("SELECT name, symbol, invested, purchase_date FROM portfolio_holdings")
+            old_rows = cur.fetchall()
+            for old in old_rows:
+                cur.execute(
+                    "INSERT INTO portfolio_transactions (name, symbol, amount, transaction_date) "
+                    "VALUES (%s, %s, %s, %s)",
+                    (old["name"], old["symbol"], old["invested"], old["purchase_date"]),
+                )
+            cur.execute("DROP TABLE portfolio_holdings")
 
-def load_holdings() -> list[dict]:
+
+def load_transactions() -> list[dict]:
     with _cursor() as cur:
-        cur.execute("SELECT name, symbol, invested, purchase_date FROM portfolio_holdings ORDER BY name")
+        cur.execute(
+            "SELECT id, name, symbol, amount, transaction_date FROM portfolio_transactions "
+            "ORDER BY name, transaction_date"
+        )
         rows = cur.fetchall()
     return [
         {
+            "id": row["id"],
             "name": row["name"],
             "symbol": row["symbol"],
-            "invested": float(row["invested"]),
-            "date": row["purchase_date"].isoformat(),
+            "amount": float(row["amount"]),
+            "date": row["transaction_date"].isoformat(),
         }
         for row in rows
     ]
 
 
-def save_holdings(holdings: list[dict]) -> None:
-    """Reemplaza el contenido completo de la tabla por `holdings` (name, symbol, invested, date)."""
+def add_transaction(name: str, symbol: str, amount: float, date: str) -> dict:
     with _cursor(commit=True) as cur:
-        cur.execute("DELETE FROM portfolio_holdings")
-        for h in holdings:
-            cur.execute(
-                "INSERT INTO portfolio_holdings (name, symbol, invested, purchase_date) VALUES (%s, %s, %s, %s)",
-                (h["name"], h["symbol"], h["invested"], h["date"]),
-            )
+        cur.execute(
+            "INSERT INTO portfolio_transactions (name, symbol, amount, transaction_date) "
+            "VALUES (%s, %s, %s, %s) RETURNING id",
+            (name, symbol, amount, date),
+        )
+        new_id = cur.fetchone()["id"]
+    return {"id": new_id, "name": name, "symbol": symbol, "amount": amount, "date": date}
+
+
+def delete_transaction(transaction_id: int) -> None:
+    with _cursor(commit=True) as cur:
+        cur.execute("DELETE FROM portfolio_transactions WHERE id = %s", (transaction_id,))
 
 
 def is_locked_out(ip: str) -> tuple[bool, int]:

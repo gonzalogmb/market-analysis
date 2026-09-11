@@ -128,19 +128,30 @@
       </section>
 
       <section id="tab-portfolio" class="tab-panel">
-        <p class="portfolio-intro" data-i18n="portfolioIntro">Indica cuánto invertiste y en qué fecha, por instrumento.</p>
-        <div id="portfolio-inputs" class="portfolio-form"></div>
-        <div class="portfolio-form-actions">
-          <button id="portfolio-btn" class="btn-outline" type="button"><svg class="icon"><use href="#i-bolt"/></svg><span class="btn-label" data-i18n="calcPortfolio">Calcular cartera</span></button>
-        </div>
-        <p id="portfolio-status" class="status-msg" hidden></p>
-        <p id="portfolio-empty" class="corr-empty" data-i18n="portfolioEmpty">Añade importe invertido y fecha de compra a tus instrumentos y pulsa Calcular cartera.</p>
-        <p id="portfolio-warning" class="status-msg" hidden></p>
-        <div id="portfolio-summary" class="cards-grid"></div>
-        <div class="table-wrap portfolio-table-wrap" hidden><table id="portfolio-table"></table></div>
-        <div class="chart-card portfolio-chart-card" hidden>
-          <h3><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="portfolioChartTitle">Cartera vs S&amp;P 500</span></h3>
-          <div class="portfolio-canvas-wrap"><canvas id="portfolio-canvas"></canvas></div>
+        <p id="portfolio-login-hint" class="portfolio-login-hint" hidden></p>
+
+        <div id="portfolio-content">
+          <nav class="subtabs">
+            <button class="subtab-btn active" data-subtab="status"><svg class="icon"><use href="#i-summary"/></svg><span data-i18n="subtabStatus">Estado actual</span></button>
+            <button class="subtab-btn" data-subtab="manage"><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="subtabManage">Gestionar cartera</span></button>
+          </nav>
+
+          <div id="subtab-status" class="subtab-panel active">
+            <p id="portfolio-empty" class="corr-empty" data-i18n="portfolioEmpty">Añade un movimiento en «Gestionar cartera» para ver aquí el estado de tu cartera.</p>
+            <p id="portfolio-warning" class="status-msg" hidden></p>
+            <div id="portfolio-summary" class="cards-grid"></div>
+            <div class="table-wrap portfolio-table-wrap" hidden><table id="portfolio-table"></table></div>
+            <div class="chart-card portfolio-chart-card" hidden>
+              <h3><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="portfolioChartTitle">Cartera vs S&amp;P 500</span></h3>
+              <div class="portfolio-canvas-wrap"><canvas id="portfolio-canvas"></canvas></div>
+            </div>
+          </div>
+
+          <div id="subtab-manage" class="subtab-panel">
+            <p class="portfolio-intro" data-i18n="portfolioIntro">Registra aportaciones o retiradas por instrumento — el estado se recalcula solo.</p>
+            <p id="portfolio-manage-status" class="status-msg" hidden></p>
+            <div id="portfolio-manage-list"></div>
+          </div>
         </div>
       </section>
     </div>

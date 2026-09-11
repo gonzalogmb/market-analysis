@@ -36,7 +36,7 @@ const state = {
   lastStats: null,
   lastGainers: null,
   lastPortfolio: null,
-  portfolio: {},
+  transactions: [],
   portfolioChart: null,
   lang: "es",
 };
@@ -60,9 +60,11 @@ const els = {
   themeToggle: document.getElementById("theme-toggle"),
   langEnBtn: document.getElementById("lang-en"),
   langEsBtn: document.getElementById("lang-es"),
-  portfolioInputs: document.getElementById("portfolio-inputs"),
-  portfolioBtn: document.getElementById("portfolio-btn"),
-  portfolioStatus: document.getElementById("portfolio-status"),
+  portfolioLoginHint: document.getElementById("portfolio-login-hint"),
+  portfolioContent: document.getElementById("portfolio-content"),
+  subtabButtons: document.querySelectorAll(".subtab-btn"),
+  portfolioManageList: document.getElementById("portfolio-manage-list"),
+  portfolioManageStatus: document.getElementById("portfolio-manage-status"),
   portfolioEmpty: document.getElementById("portfolio-empty"),
   portfolioWarning: document.getElementById("portfolio-warning"),
   portfolioSummary: document.getElementById("portfolio-summary"),
@@ -123,14 +125,12 @@ const translations = {
       "Máx drawdown %": "Máx drawdown %",
     },
     myPortfolio: "Mi cartera",
-    calcPortfolio: "Calcular cartera",
-    calculating: "Calculando...",
-    investedPlaceholder: "Importe €",
-    portfolioIntro: "Indica cuánto invertiste y en qué fecha, por instrumento.",
+    subtabStatus: "Estado actual",
+    subtabManage: "Gestionar cartera",
+    portfolioIntro: "Registra aportaciones o retiradas por instrumento — el estado se recalcula solo.",
     portfolioNoneSelected: "Elige instrumentos en la barra lateral para poder añadirlos a tu cartera.",
-    portfolioEmptyError: "Añade importe invertido y fecha de compra a al menos un instrumento.",
     tabPortfolio: "Mi cartera",
-    portfolioEmpty: "Añade importe invertido y fecha de compra a tus instrumentos y pulsa Calcular cartera.",
+    portfolioEmpty: "Añade un movimiento en «Gestionar cartera» para ver aquí el estado de tu cartera.",
     portfolioChartTitle: "Cartera vs S&P 500",
     totalInvested: "Invertido",
     currentValue: "Valor actual",
@@ -141,14 +141,23 @@ const translations = {
     currencyWarning: "No se pudo convertir a EUR el tipo de cambio de: ",
     logout: "Cerrar sesión",
     loginBtn: "Iniciar sesión",
-    portfolioSaveError: "No se pudo guardar la cartera en el servidor.",
-    portfolioLoadError: "No se pudo cargar tu cartera guardada.",
     portfolioLoginHint: "Inicia sesión (botón arriba a la izquierda) para usar tu cartera personal.",
+    fundNetLabel: "Neto",
+    noMovements: "Sin movimientos todavía.",
+    txDeposit: "Aportación",
+    txWithdraw: "Retirada",
+    txAddDeposit: "+ Aportar",
+    txAddWithdraw: "− Retirar",
+    txAmountPlaceholder: "Importe €",
+    txAddBtn: "Añadir",
+    txAmountRequired: "Indica un importe mayor que 0.",
+    txDateRequired: "Indica una fecha.",
+    txLoadError: "No se pudieron cargar tus movimientos.",
+    removeTitle: "Eliminar",
     portfolioCols: {
       name: "Nombre",
-      invested: "Invertido",
-      date: "Fecha compra",
-      entry_price: "Precio compra",
+      invested: "Invertido neto",
+      n_transactions: "Movimientos",
       current_price: "Precio actual",
       current_value: "Valor actual",
       gain_pct: "Ganancia %",
@@ -193,14 +202,12 @@ const translations = {
       "Máx drawdown %": "Max drawdown %",
     },
     myPortfolio: "My portfolio",
-    calcPortfolio: "Calculate portfolio",
-    calculating: "Calculating...",
-    investedPlaceholder: "Amount €",
-    portfolioIntro: "Enter how much you invested and when, per instrument.",
+    subtabStatus: "Current status",
+    subtabManage: "Manage portfolio",
+    portfolioIntro: "Record deposits or withdrawals per instrument — the status recalculates automatically.",
     portfolioNoneSelected: "Choose instruments in the sidebar to add them to your portfolio.",
-    portfolioEmptyError: "Add an invested amount and purchase date to at least one instrument.",
     tabPortfolio: "My portfolio",
-    portfolioEmpty: "Add an invested amount and purchase date to your instruments, then click Calculate portfolio.",
+    portfolioEmpty: "Add a movement in “Manage portfolio” to see your portfolio status here.",
     portfolioChartTitle: "Portfolio vs S&P 500",
     totalInvested: "Invested",
     currentValue: "Current value",
@@ -211,9 +218,8 @@ const translations = {
     currencyWarning: "Could not convert to EUR the exchange rate for: ",
     portfolioCols: {
       name: "Name",
-      invested: "Invested",
-      date: "Purchase date",
-      entry_price: "Purchase price",
+      invested: "Net invested",
+      n_transactions: "Movements",
       current_price: "Current price",
       current_value: "Current value",
       gain_pct: "Gain %",
@@ -221,9 +227,19 @@ const translations = {
     },
     logout: "Log out",
     loginBtn: "Log in",
-    portfolioSaveError: "Could not save the portfolio on the server.",
-    portfolioLoadError: "Could not load your saved portfolio.",
     portfolioLoginHint: "Log in (top-left button) to use your personal portfolio.",
+    fundNetLabel: "Net",
+    noMovements: "No movements yet.",
+    txDeposit: "Deposit",
+    txWithdraw: "Withdrawal",
+    txAddDeposit: "+ Deposit",
+    txAddWithdraw: "− Withdraw",
+    txAmountPlaceholder: "Amount €",
+    txAddBtn: "Add",
+    txAmountRequired: "Enter an amount greater than 0.",
+    txDateRequired: "Enter a date.",
+    txLoadError: "Could not load your movements.",
+    removeTitle: "Remove",
   },
 };
 
@@ -264,7 +280,7 @@ function applyLanguage(lang) {
     setBtnLabel(els.generateBtn, t("generate"));
   }
 
-  if (!canUseCartera) els.portfolioEmpty.textContent = t("portfolioLoginHint");
+  updatePortfolioAccess();
 
   renderTickerList();
   if (state.lastStats) renderStats(state.lastStats);
@@ -370,141 +386,223 @@ function renderTickerList() {
       els.tickerList.appendChild(li);
     });
   }
-  renderPortfolioInputs();
+  renderManageList();
 }
 
 // ---------- Mi cartera ----------
-// El estado de la cartera (importe invertido + fecha por instrumento) se guarda en el servidor
-// (tabla portfolio_holdings), no en localStorage, para que persista igual entre dispositivos.
+// La cartera se guarda en el servidor como un histórico de movimientos (aportaciones/retiradas)
+// por instrumento, no como una única compra. El estado actual se recalcula automáticamente cada
+// vez que se añade o borra un movimiento, sin necesidad de un botón "Calcular".
 
-function buildHoldingsPayload() {
-  return Object.entries(state.portfolio)
-    .map(([name, entry]) => ({ name, symbol: state.selected[name], invested: entry.invested, date: entry.date }))
-    .filter((h) => h.symbol && h.invested > 0 && h.date);
-}
+document.querySelectorAll(".subtab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".subtab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".subtab-panel").forEach((p) => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(`subtab-${btn.dataset.subtab}`).classList.add("active");
+  });
+});
 
-let saveHoldingsDebounce = null;
-function scheduleSaveHoldings() {
-  clearTimeout(saveHoldingsDebounce);
-  saveHoldingsDebounce = setTimeout(saveHoldingsNow, 600);
-}
-
-async function saveHoldingsNow() {
-  try {
-    const res = await fetch("/api/portfolio/holdings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ holdings: buildHoldingsPayload() }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setPortfolioStatus(data.error || t("portfolioSaveError"), "error");
-      return;
-    }
-    setPortfolioStatus("");
-  } catch (err) {
-    setPortfolioStatus(t("portfolioSaveError"), "error");
+function updatePortfolioAccess() {
+  if (canUseCartera) {
+    els.portfolioLoginHint.hidden = true;
+    els.portfolioContent.hidden = false;
+  } else {
+    els.portfolioLoginHint.innerHTML = `<svg class="icon"><use href="#i-lock"/></svg><span>${t("portfolioLoginHint")}</span>`;
+    els.portfolioLoginHint.hidden = false;
+    els.portfolioContent.hidden = true;
   }
 }
 
-async function loadPortfolioFromServer() {
-  try {
-    const res = await fetch("/api/portfolio/holdings");
-    if (!res.ok) return;
-    const holdings = await res.json();
-    if (!Array.isArray(holdings)) return;
-    holdings.forEach((h) => {
-      if (!(h.name in state.selected)) state.selected[h.name] = h.symbol;
-      state.portfolio[h.name] = { invested: h.invested, date: h.date };
-    });
-    renderTickerList();
-  } catch (err) {
-    setPortfolioStatus(t("portfolioLoadError"), "error");
-  }
-}
-
-function renderPortfolioInputs() {
-  els.portfolioInputs.innerHTML = "";
-
-  if (!canUseCartera) {
-    const p = document.createElement("p");
-    p.className = "portfolio-login-hint";
-    p.innerHTML = `<svg class="icon"><use href="#i-lock"/></svg><span>${t("portfolioLoginHint")}</span>`;
-    els.portfolioInputs.appendChild(p);
+function setManageStatus(message, type) {
+  if (!message) {
+    els.portfolioManageStatus.hidden = true;
     return;
   }
+  els.portfolioManageStatus.hidden = false;
+  els.portfolioManageStatus.textContent = message;
+  els.portfolioManageStatus.className = `status-msg ${type || ""}`;
+}
 
-  const names = Object.keys(state.selected);
-
-  // Descarta entradas de instrumentos que ya no están seleccionados.
-  let changed = false;
-  Object.keys(state.portfolio).forEach((name) => {
-    if (!(name in state.selected)) {
-      delete state.portfolio[name];
-      changed = true;
-    }
+function groupTransactionsByName() {
+  const groups = {};
+  state.transactions.forEach((tx) => {
+    if (!groups[tx.name]) groups[tx.name] = { name: tx.name, symbol: tx.symbol, transactions: [] };
+    groups[tx.name].transactions.push(tx);
   });
-  if (changed) scheduleSaveHoldings();
+  return groups;
+}
+
+async function loadTransactionsFromServer() {
+  try {
+    const res = await fetch("/api/portfolio/transactions");
+    if (!res.ok) return;
+    const txs = await res.json();
+    if (!Array.isArray(txs)) return;
+    state.transactions = txs;
+    txs.forEach((tx) => {
+      if (!(tx.name in state.selected)) state.selected[tx.name] = tx.symbol;
+    });
+    renderTickerList();
+    if (txs.length) recomputePortfolio();
+  } catch (err) {
+    setManageStatus(t("txLoadError"), "error");
+  }
+}
+
+function renderManageList() {
+  els.portfolioManageList.innerHTML = "";
+  const names = Object.keys(state.selected);
 
   if (names.length === 0) {
     const p = document.createElement("p");
     p.className = "portfolio-empty-hint";
     p.textContent = t("portfolioNoneSelected");
-    els.portfolioInputs.appendChild(p);
+    els.portfolioManageList.appendChild(p);
     return;
   }
 
+  const grouped = groupTransactionsByName();
+
   names.forEach((name) => {
-    const entry = state.portfolio[name] || {};
-    const row = document.createElement("div");
-    row.className = "portfolio-form-row";
-    row.innerHTML = `
-      <span class="pf-name" title="${name}">${name}</span>
-      <input type="number" class="portfolio-invested" min="0" step="0.01" placeholder="${t("investedPlaceholder")}" />
-      <input type="date" class="portfolio-date" />
+    const symbol = state.selected[name];
+    const txs = (grouped[name] ? grouped[name].transactions : []).slice().sort((a, b) => a.date.localeCompare(b.date));
+    const net = txs.reduce((sum, tx) => sum + tx.amount, 0);
+
+    const card = document.createElement("div");
+    card.className = "fund-manager";
+
+    const header = document.createElement("div");
+    header.className = "fund-manager-header";
+    header.innerHTML = `<span class="fund-name" title="${name}">${name}</span><span class="fund-net">${t("fundNetLabel")}: ${fmtNum(net)} €</span>`;
+    card.appendChild(header);
+
+    if (txs.length) {
+      const list = document.createElement("ul");
+      list.className = "tx-list";
+      txs.forEach((tx) => {
+        const isDeposit = tx.amount >= 0;
+        const li = document.createElement("li");
+        li.className = "tx-item";
+        li.innerHTML = `
+          <span class="tx-date">${tx.date}</span>
+          <span class="tx-badge ${isDeposit ? "deposit" : "withdraw"}">${isDeposit ? t("txDeposit") : t("txWithdraw")}</span>
+          <span class="tx-amount">${isDeposit ? "+" : "−"} ${fmtNum(Math.abs(tx.amount))} €</span>
+          <button class="tx-delete" type="button" aria-label="${t("removeTitle")}">✕</button>
+        `;
+        li.querySelector(".tx-delete").addEventListener("click", () => deleteTransactionUI(tx.id));
+        list.appendChild(li);
+      });
+      card.appendChild(list);
+    } else {
+      const p = document.createElement("p");
+      p.className = "portfolio-empty-hint";
+      p.textContent = t("noMovements");
+      card.appendChild(p);
+    }
+
+    const addRow = document.createElement("div");
+    addRow.className = "tx-add-row";
+    addRow.innerHTML = `
+      <div class="tx-type-toggle">
+        <button type="button" class="tx-type-btn active" data-type="deposit">${t("txAddDeposit")}</button>
+        <button type="button" class="tx-type-btn" data-type="withdraw">${t("txAddWithdraw")}</button>
+      </div>
+      <input type="number" class="tx-amount-input" min="0.01" step="0.01" placeholder="${t("txAmountPlaceholder")}" />
+      <input type="date" class="tx-date-input" />
+      <button type="button" class="btn-outline tx-add-btn">${t("txAddBtn")}</button>
     `;
-    const investedInput = row.querySelector(".portfolio-invested");
-    const dateInput = row.querySelector(".portfolio-date");
-    if (entry.invested != null) investedInput.value = entry.invested;
-    if (entry.date) dateInput.value = entry.date;
-
-    const update = () => {
-      const invested = parseFloat(investedInput.value);
-      const date = dateInput.value;
-      if (invested > 0 && date) {
-        state.portfolio[name] = { invested, date };
-      } else {
-        delete state.portfolio[name];
+    let txType = "deposit";
+    const typeButtons = addRow.querySelectorAll(".tx-type-btn");
+    typeButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        typeButtons.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        txType = btn.dataset.type;
+      });
+    });
+    const amountInput = addRow.querySelector(".tx-amount-input");
+    const dateInput = addRow.querySelector(".tx-date-input");
+    addRow.querySelector(".tx-add-btn").addEventListener("click", () => {
+      const amount = parseFloat(amountInput.value);
+      if (!(amount > 0)) {
+        setManageStatus(t("txAmountRequired"), "error");
+        return;
       }
-      scheduleSaveHoldings();
-    };
-    investedInput.addEventListener("input", update);
-    dateInput.addEventListener("change", update);
+      if (!dateInput.value) {
+        setManageStatus(t("txDateRequired"), "error");
+        return;
+      }
+      const signedAmount = txType === "withdraw" ? -amount : amount;
+      addTransactionUI(name, symbol, signedAmount, dateInput.value, () => {
+        amountInput.value = "";
+        dateInput.value = "";
+      });
+    });
+    card.appendChild(addRow);
 
-    els.portfolioInputs.appendChild(row);
+    els.portfolioManageList.appendChild(card);
   });
 }
 
-function setPortfolioStatus(message, type) {
-  if (!message) {
-    els.portfolioStatus.hidden = true;
-    return;
+async function addTransactionUI(name, symbol, amount, date, onSuccess) {
+  setManageStatus("");
+  try {
+    const res = await fetch("/api/portfolio/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, symbol, amount, date }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setManageStatus(data.error || t("unknownError"), "error");
+      return;
+    }
+    state.transactions.push(data);
+    renderManageList();
+    recomputePortfolio();
+    if (onSuccess) onSuccess();
+  } catch (err) {
+    setManageStatus(t("connectionError"), "error");
   }
-  els.portfolioStatus.hidden = false;
-  els.portfolioStatus.textContent = message;
-  els.portfolioStatus.className = `status-msg ${type || ""}`;
 }
 
-els.portfolioBtn.addEventListener("click", async () => {
-  const holdings = buildHoldingsPayload();
+async function deleteTransactionUI(id) {
+  setManageStatus("");
+  try {
+    const res = await fetch(`/api/portfolio/transactions/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setManageStatus(data.error || t("unknownError"), "error");
+      return;
+    }
+    state.transactions = state.transactions.filter((tx) => tx.id !== id);
+    renderManageList();
+    recomputePortfolio();
+  } catch (err) {
+    setManageStatus(t("connectionError"), "error");
+  }
+}
+
+async function recomputePortfolio() {
+  const grouped = groupTransactionsByName();
+  const holdings = Object.values(grouped)
+    .map((h) => ({
+      name: h.name,
+      symbol: h.symbol,
+      transactions: h.transactions.map((tx) => ({ amount: tx.amount, date: tx.date })),
+    }))
+    .filter((h) => h.transactions.length);
 
   if (!holdings.length) {
-    setPortfolioStatus(t("portfolioEmptyError"), "error");
+    state.lastPortfolio = null;
+    els.portfolioEmpty.hidden = false;
+    els.portfolioTableWrap.hidden = true;
+    els.portfolioChartCard.hidden = true;
+    els.portfolioSummary.innerHTML = "";
     return;
   }
-  setPortfolioStatus("");
-  els.portfolioBtn.disabled = true;
-  setBtnLabel(els.portfolioBtn, t("calculating"));
+
   try {
     const res = await fetch("/api/portfolio", {
       method: "POST",
@@ -513,19 +611,15 @@ els.portfolioBtn.addEventListener("click", async () => {
     });
     const data = await res.json();
     if (!res.ok) {
-      setPortfolioStatus(data.error || t("unknownError"), "error");
+      setManageStatus(data.error || t("unknownError"), "error");
       return;
     }
     state.lastPortfolio = data;
     renderPortfolio(data);
-    document.querySelector('.tab-btn[data-tab="portfolio"]')?.click();
   } catch (err) {
-    setPortfolioStatus(t("connectionError"), "error");
-  } finally {
-    els.portfolioBtn.disabled = false;
-    setBtnLabel(els.portfolioBtn, t("calcPortfolio"));
+    setManageStatus(t("connectionError"), "error");
   }
-});
+}
 
 function renderPortfolio(data) {
   els.portfolioEmpty.hidden = true;
@@ -584,12 +678,12 @@ function renderPortfolio(data) {
     els.portfolioSummary.appendChild(card);
   });
 
-  const cols = ["name", "invested", "date", "entry_price", "current_price", "current_value", "gain_pct", "weight_pct"];
+  const cols = ["name", "invested", "n_transactions", "current_price", "current_value", "gain_pct", "weight_pct"];
   const colLabels = t("portfolioCols");
   let html = "<thead><tr>" + cols.map((c) => `<th>${colLabels[c] || c}</th>`).join("") + "</tr></thead><tbody>";
   data.holdings.forEach((row) => {
     html += "<tr>" + cols.map((c) => {
-      if (c === "name" || c === "date") return `<td>${row[c]}</td>`;
+      if (c === "name" || c === "n_transactions") return `<td>${row[c]}</td>`;
       return `<td>${fmtNum(row[c])}</td>`;
     }).join("") + "</tr>";
   });
@@ -976,11 +1070,7 @@ function renderTopGainers(rows) {
   });
 }
 
-if (!canUseCartera) {
-  els.portfolioBtn.hidden = true;
-  els.portfolioEmpty.textContent = t("portfolioLoginHint");
-}
-
+updatePortfolioAccess();
 renderTickerList();
 loadTopGainers();
-if (canUseCartera) loadPortfolioFromServer();
+if (canUseCartera) loadTransactionsFromServer();

@@ -213,7 +213,7 @@ def api_portfolio():
     holdings_input = payload.get("holdings") or []
 
     if not holdings_input:
-        return jsonify({"error": "Añade al menos una posición con importe invertido y fecha."}), 400
+        return jsonify({"error": "Añade al menos un movimiento a algún instrumento."}), 400
 
     symbols = {h.get("symbol") for h in holdings_input if h.get("symbol")}
     symbols.add(BENCHMARK_SYMBOL)
@@ -240,38 +240,47 @@ def api_portfolio():
     return jsonify(_clean_deep(result))
 
 
-@app.route("/api/portfolio/holdings", methods=["GET"])
+@app.route("/api/portfolio/transactions", methods=["GET"])
 @login_required
-def api_get_holdings():
+def api_get_transactions():
     try:
-        return jsonify(db.load_holdings())
+        return jsonify(db.load_transactions())
     except db.DatabaseNotConfigured:
         return jsonify({"error": "El servidor no tiene configurada la base de datos (DATABASE_URL)."}), 503
 
 
-@app.route("/api/portfolio/holdings", methods=["PUT"])
+@app.route("/api/portfolio/transactions", methods=["POST"])
 @login_required
-def api_save_holdings():
+def api_add_transaction():
     payload = request.get_json(silent=True) or {}
-    holdings = payload.get("holdings")
-    if not isinstance(holdings, list):
-        return jsonify({"error": "Formato inválido: se esperaba una lista de posiciones."}), 400
+    name = payload.get("name")
+    symbol = payload.get("symbol")
+    date = payload.get("date")
 
-    for h in holdings:
-        if not h.get("name") or not h.get("symbol") or not h.get("date"):
-            return jsonify({"error": "Cada posición necesita nombre, símbolo y fecha."}), 400
-        try:
-            h["invested"] = float(h.get("invested"))
-        except (TypeError, ValueError):
-            return jsonify({"error": "El importe invertido debe ser numérico."}), 400
-        if h["invested"] <= 0:
-            return jsonify({"error": "El importe invertido debe ser mayor que 0."}), 400
+    if not name or not symbol or not date:
+        return jsonify({"error": "Falta nombre, símbolo o fecha del movimiento."}), 400
+    try:
+        amount = float(payload.get("amount"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "El importe debe ser numérico."}), 400
+    if amount == 0:
+        return jsonify({"error": "El importe no puede ser 0."}), 400
 
     try:
-        db.save_holdings(holdings)
+        tx = db.add_transaction(name, symbol, amount, date)
     except db.DatabaseNotConfigured:
         return jsonify({"error": "El servidor no tiene configurada la base de datos (DATABASE_URL)."}), 503
 
+    return jsonify(tx)
+
+
+@app.route("/api/portfolio/transactions/<int:transaction_id>", methods=["DELETE"])
+@login_required
+def api_delete_transaction(transaction_id):
+    try:
+        db.delete_transaction(transaction_id)
+    except db.DatabaseNotConfigured:
+        return jsonify({"error": "El servidor no tiene configurada la base de datos (DATABASE_URL)."}), 503
     return jsonify({"ok": True})
 
 
