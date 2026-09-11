@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Market Analysis</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
@@ -18,6 +20,7 @@
 </script>
 </head>
 <body>
+{% include "_icons.html" %}
 <div class="top-controls">
   <div class="lang-toggle" role="group" aria-label="Language selector">
     <button id="lang-en" class="lang-btn" type="button" title="Switch to English" aria-label="English">
@@ -27,7 +30,7 @@
       <img src="https://flagcdn.com/w40/es.png" srcset="https://flagcdn.com/w80/es.png 2x" alt="ES" />
     </button>
   </div>
-  <button id="theme-toggle" class="theme-toggle" type="button" data-i18n-title="themeToggleTitle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">🌙</button>
+  <button id="theme-toggle" class="theme-toggle" type="button" data-i18n-title="themeToggleTitle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro"><svg class="icon"><use href="#i-moon"/></svg></button>
 </div>
 <div class="app">
   <aside class="sidebar">
@@ -35,14 +38,14 @@
     <div class="auth-row">
       {% if authenticated %}
       <form method="post" action="{{ url_for('logout') }}">
-        <button type="submit" class="auth-btn" data-i18n="logout">🔓 Cerrar sesión</button>
+        <button type="submit" class="auth-btn"><svg class="icon"><use href="#i-logout"/></svg><span data-i18n="logout">Cerrar sesión</span></button>
       </form>
       {% else %}
-      <a href="{{ url_for('login') }}" class="auth-btn" data-i18n="loginBtn">🔒 Iniciar sesión</a>
+      <a href="{{ url_for('login') }}" class="auth-btn"><svg class="icon"><use href="#i-lock"/></svg><span data-i18n="loginBtn">Iniciar sesión</span></a>
       {% endif %}
     </div>
     {% endif %}
-    <h1 class="brand">📈 Market Analysis</h1>
+    <h1 class="brand"><svg class="icon icon-brand"><use href="#i-chart"/></svg>Market Analysis</h1>
     <p class="subtitle" data-i18n="subtitle">Yahoo Finance · indicadores · correlaciones</p>
 
     <section class="side-section">
@@ -53,16 +56,16 @@
     <hr />
 
     <section class="side-section">
-      <h2 data-i18n="myPortfolio">💼 Mi cartera</h2>
+      <h2><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="myPortfolio">Mi cartera</span></h2>
       <div id="portfolio-inputs" class="portfolio-inputs"></div>
-      <button id="portfolio-btn" class="btn-outline" type="button" data-i18n="calcPortfolio">📊 Calcular cartera</button>
+      <button id="portfolio-btn" class="btn-outline" type="button"><svg class="icon"><use href="#i-bolt"/></svg><span class="btn-label" data-i18n="calcPortfolio">Calcular cartera</span></button>
       <p id="portfolio-status" class="status-msg" hidden></p>
     </section>
 
     <hr />
 
     <section class="side-section">
-      <h2 data-i18n="searchInstrument">🔎 Buscar instrumento</h2>
+      <h2><svg class="icon"><use href="#i-search"/></svg><span data-i18n="searchInstrument">Buscar instrumento</span></h2>
       <input id="search-input" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="ej. Apple, oro, S&amp;P 500..." autocomplete="off" />
       <div id="search-results" class="search-results" hidden></div>
     </section>
@@ -87,7 +90,7 @@
 
     <hr />
 
-    <button id="generate-btn" class="btn-primary" data-i18n="generate">🚀 Generar</button>
+    <button id="generate-btn" class="btn-primary"><svg class="icon"><use href="#i-bolt"/></svg><span class="btn-label" data-i18n="generate">Generar</span></button>
     <p id="status-msg" class="status-msg" hidden></p>
 
     <p class="sidebar-footer">© gonzalogmb</p>
@@ -95,21 +98,21 @@
 
   <main class="content">
     <section class="top-gainers">
-      <h2 class="section-title" data-i18n="topGainersTitle">🔥 Mayores subidas del día</h2>
+      <h2 class="section-title"><svg class="icon"><use href="#i-flame"/></svg><span data-i18n="topGainersTitle">Mayores subidas del día</span></h2>
       <div id="top-gainers-list" class="gainers-grid">
         <p class="gainers-status" data-i18n="loading">Cargando...</p>
       </div>
     </section>
 
-    <div id="empty-state" class="empty-state" data-i18n-html="emptyStateHtml">👈 Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</div>
+    <div id="empty-state" class="empty-state" data-i18n-html="emptyStateHtml">Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.</div>
 
     <div id="results" class="results" hidden>
       <nav class="tabs">
-        <button class="tab-btn active" data-tab="resumen" data-i18n="tabResumen">📋 Resumen</button>
-        <button class="tab-btn" data-tab="stats" data-i18n="tabStats">📐 Estadísticas</button>
-        <button class="tab-btn" data-tab="corr" data-i18n="tabCorr">🔗 Correlación</button>
-        <button class="tab-btn" data-tab="charts" data-i18n="tabCharts">📊 Gráficos</button>
-        <button class="tab-btn" data-tab="portfolio" data-i18n="tabPortfolio">💼 Mi cartera</button>
+        <button class="tab-btn active" data-tab="resumen"><svg class="icon"><use href="#i-summary"/></svg><span data-i18n="tabResumen">Resumen</span></button>
+        <button class="tab-btn" data-tab="stats"><svg class="icon"><use href="#i-stats"/></svg><span data-i18n="tabStats">Estadísticas</span></button>
+        <button class="tab-btn" data-tab="corr"><svg class="icon"><use href="#i-link"/></svg><span data-i18n="tabCorr">Correlación</span></button>
+        <button class="tab-btn" data-tab="charts"><svg class="icon"><use href="#i-chart"/></svg><span data-i18n="tabCharts">Gráficos</span></button>
+        <button class="tab-btn" data-tab="portfolio"><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="tabPortfolio">Mi cartera</span></button>
       </nav>
 
       <section id="tab-resumen" class="tab-panel active">
@@ -137,7 +140,7 @@
         <div id="portfolio-summary" class="cards-grid"></div>
         <div class="table-wrap portfolio-table-wrap"><table id="portfolio-table"></table></div>
         <div class="chart-card portfolio-chart-card">
-          <h3 data-i18n="portfolioChartTitle">Cartera vs S&amp;P 500</h3>
+          <h3><svg class="icon"><use href="#i-brief"/></svg><span data-i18n="portfolioChartTitle">Cartera vs S&amp;P 500</span></h3>
           <div class="portfolio-canvas-wrap"><canvas id="portfolio-canvas"></canvas></div>
         </div>
       </section>

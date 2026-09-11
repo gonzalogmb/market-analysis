@@ -4,6 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Market Analysis · Login</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 <script>
   (function () {
@@ -17,15 +19,16 @@
 </script>
 </head>
 <body>
+{% include "_icons.html" %}
 <div class="login-page">
   <form class="login-card" method="post">
-    <div class="login-icon">📈</div>
+    <div class="login-icon"><svg class="icon-lg"><use href="#i-chart"/></svg></div>
     <h1 class="login-title">Market Analysis</h1>
     <p class="login-subtitle">Introduce tu contraseña para continuar</p>
     <div class="login-field">
       <input type="password" name="password" placeholder="Contraseña" autofocus autocomplete="current-password" />
     </div>
-    {% if error %}<p class="login-error">⚠️ {{ error }}</p>{% endif %}
+    {% if error %}<p class="login-error">{{ error }}</p>{% endif %}
     <button type="submit" class="login-submit">Entrar →</button>
     <a href="{{ url_for('index') }}" class="login-guest-link">Continuar como invitado</a>
   </form>

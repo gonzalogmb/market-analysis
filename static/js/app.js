@@ -69,6 +69,14 @@ const els = {
   portfolioCanvas: document.getElementById("portfolio-canvas"),
 };
 
+// Los botones con icono llevan el texto en un <span class="btn-label">; cambiar
+// btn.textContent directamente borraría también el <svg> del icono.
+function setBtnLabel(btn, text) {
+  const label = btn.querySelector(".btn-label");
+  if (label) label.textContent = text;
+  else btn.textContent = text;
+}
+
 // ---------- Idioma ----------
 
 const LANG_KEY = "market-analysis-lang";
@@ -79,22 +87,22 @@ const translations = {
     subtitle: "Yahoo Finance · indicadores · correlaciones",
     selectedInstruments: "Instrumentos seleccionados",
     noneSelected: "Ninguno seleccionado.",
-    searchInstrument: "🔎 Buscar instrumento",
+    searchInstrument: "Buscar instrumento",
     searchPlaceholder: "ej. Apple, oro, S&P 500...",
     historicalRange: "Rango histórico",
     interval: "Intervalo",
-    generate: "🚀 Generar",
+    generate: "Generar",
     generating: "Descargando...",
-    topGainersTitle: "🔥 Mayores subidas del día",
+    topGainersTitle: "Mayores subidas del día",
     loading: "Cargando...",
     gainersError: "No se pudieron cargar las subidas del día.",
     gainersEmpty: "Sin datos disponibles ahora mismo.",
     addToSelected: "Añadir a seleccionados",
-    emptyStateHtml: "👈 Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.",
-    tabResumen: "📋 Resumen",
-    tabStats: "📐 Estadísticas",
-    tabCorr: "🔗 Correlación",
-    tabCharts: "📊 Gráficos",
+    emptyStateHtml: "Elige instrumentos en la barra lateral y pulsa <strong>Generar</strong>.",
+    tabResumen: "Resumen",
+    tabStats: "Estadísticas",
+    tabCorr: "Correlación",
+    tabCharts: "Gráficos",
     selectAtLeastOne: "Selecciona al menos un instrumento.",
     unknownError: "Error desconocido.",
     connectionError: "No se pudo conectar con el servidor.",
@@ -111,13 +119,13 @@ const translations = {
       Sharpe: "Sharpe",
       "Máx drawdown %": "Máx drawdown %",
     },
-    myPortfolio: "💼 Mi cartera",
-    calcPortfolio: "📊 Calcular cartera",
+    myPortfolio: "Mi cartera",
+    calcPortfolio: "Calcular cartera",
     calculating: "Calculando...",
     investedPlaceholder: "Importe €",
     portfolioNoneSelected: "Elige instrumentos arriba para poder añadirlos a tu cartera.",
     portfolioEmptyError: "Añade importe invertido y fecha de compra a al menos un instrumento.",
-    tabPortfolio: "💼 Mi cartera",
+    tabPortfolio: "Mi cartera",
     portfolioEmpty: "Añade importe invertido y fecha de compra a tus instrumentos en la barra lateral y pulsa Calcular cartera.",
     portfolioChartTitle: "Cartera vs S&P 500",
     totalInvested: "Invertido",
@@ -128,10 +136,10 @@ const translations = {
     benchmarkSeriesLabel: "S&P 500 (mismo importe/fechas)",
     currencyWarning: "No se pudo convertir a EUR el tipo de cambio de: ",
     logout: "Cerrar sesión",
-    loginBtn: "🔒 Iniciar sesión",
+    loginBtn: "Iniciar sesión",
     portfolioSaveError: "No se pudo guardar la cartera en el servidor.",
     portfolioLoadError: "No se pudo cargar tu cartera guardada.",
-    portfolioLoginHint: "🔒 Inicia sesión (botón arriba a la izquierda) para usar tu cartera personal.",
+    portfolioLoginHint: "Inicia sesión (botón arriba a la izquierda) para usar tu cartera personal.",
     portfolioCols: {
       name: "Nombre",
       invested: "Invertido",
@@ -148,22 +156,22 @@ const translations = {
     subtitle: "Yahoo Finance · indicators · correlations",
     selectedInstruments: "Selected instruments",
     noneSelected: "None selected.",
-    searchInstrument: "🔎 Search instrument",
+    searchInstrument: "Search instrument",
     searchPlaceholder: "e.g. Apple, gold, S&P 500...",
     historicalRange: "Historical range",
     interval: "Interval",
-    generate: "🚀 Generate",
+    generate: "Generate",
     generating: "Loading...",
-    topGainersTitle: "🔥 Today's top gainers",
+    topGainersTitle: "Today's top gainers",
     loading: "Loading...",
     gainersError: "Could not load today's top gainers.",
     gainersEmpty: "No data available right now.",
     addToSelected: "Add to selected",
-    emptyStateHtml: "👈 Choose instruments in the sidebar and click <strong>Generate</strong>.",
-    tabResumen: "📋 Summary",
-    tabStats: "📐 Statistics",
-    tabCorr: "🔗 Correlation",
-    tabCharts: "📊 Charts",
+    emptyStateHtml: "Choose instruments in the sidebar and click <strong>Generate</strong>.",
+    tabResumen: "Summary",
+    tabStats: "Statistics",
+    tabCorr: "Correlation",
+    tabCharts: "Charts",
     selectAtLeastOne: "Select at least one instrument.",
     unknownError: "Unknown error.",
     connectionError: "Could not connect to the server.",
@@ -180,13 +188,13 @@ const translations = {
       Sharpe: "Sharpe",
       "Máx drawdown %": "Max drawdown %",
     },
-    myPortfolio: "💼 My portfolio",
-    calcPortfolio: "📊 Calculate portfolio",
+    myPortfolio: "My portfolio",
+    calcPortfolio: "Calculate portfolio",
     calculating: "Calculating...",
     investedPlaceholder: "Amount €",
     portfolioNoneSelected: "Choose instruments above to add them to your portfolio.",
     portfolioEmptyError: "Add an invested amount and purchase date to at least one instrument.",
-    tabPortfolio: "💼 My portfolio",
+    tabPortfolio: "My portfolio",
     portfolioEmpty: "Add an invested amount and purchase date to your instruments in the sidebar, then click Calculate portfolio.",
     portfolioChartTitle: "Portfolio vs S&P 500",
     totalInvested: "Invested",
@@ -207,10 +215,10 @@ const translations = {
       weight_pct: "Weight %",
     },
     logout: "Log out",
-    loginBtn: "🔒 Log in",
+    loginBtn: "Log in",
     portfolioSaveError: "Could not save the portfolio on the server.",
     portfolioLoadError: "Could not load your saved portfolio.",
-    portfolioLoginHint: "🔒 Log in (top-left button) to use your personal portfolio.",
+    portfolioLoginHint: "Log in (top-left button) to use your personal portfolio.",
   },
 };
 
@@ -248,7 +256,7 @@ function applyLanguage(lang) {
   els.langEsBtn?.classList.toggle("active", state.lang === "es");
 
   if (!els.generateBtn.disabled) {
-    els.generateBtn.textContent = t("generate");
+    setBtnLabel(els.generateBtn, t("generate"));
   }
 
   if (!canUseCartera) els.portfolioEmpty.textContent = t("portfolioLoginHint");
@@ -294,7 +302,8 @@ function applyTheme(theme) {
     document.documentElement.removeAttribute("data-theme");
   }
   if (els.themeToggle) {
-    els.themeToggle.textContent = effectiveTheme() === "dark" ? "☀️" : "🌙";
+    const icon = effectiveTheme() === "dark" ? "i-sun" : "i-moon";
+    els.themeToggle.innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>`;
   }
 }
 
@@ -415,7 +424,7 @@ function renderPortfolioInputs() {
   if (!canUseCartera) {
     const p = document.createElement("p");
     p.className = "portfolio-login-hint";
-    p.textContent = t("portfolioLoginHint");
+    p.innerHTML = `<svg class="icon"><use href="#i-lock"/></svg><span>${t("portfolioLoginHint")}</span>`;
     els.portfolioInputs.appendChild(p);
     return;
   }
@@ -492,7 +501,7 @@ els.portfolioBtn.addEventListener("click", async () => {
   }
   setPortfolioStatus("");
   els.portfolioBtn.disabled = true;
-  els.portfolioBtn.textContent = t("calculating");
+  setBtnLabel(els.portfolioBtn, t("calculating"));
   try {
     const res = await fetch("/api/portfolio", {
       method: "POST",
@@ -513,7 +522,7 @@ els.portfolioBtn.addEventListener("click", async () => {
     setPortfolioStatus(t("connectionError"), "error");
   } finally {
     els.portfolioBtn.disabled = false;
-    els.portfolioBtn.textContent = t("calcPortfolio");
+    setBtnLabel(els.portfolioBtn, t("calcPortfolio"));
   }
 });
 
@@ -691,7 +700,7 @@ els.generateBtn.addEventListener("click", async () => {
   }
   setStatus("");
   els.generateBtn.disabled = true;
-  els.generateBtn.textContent = t("generating");
+  setBtnLabel(els.generateBtn, t("generating"));
   try {
     const res = await fetch("/api/generate", {
       method: "POST",
@@ -712,7 +721,7 @@ els.generateBtn.addEventListener("click", async () => {
     setStatus(t("connectionError"), "error");
   } finally {
     els.generateBtn.disabled = false;
-    els.generateBtn.textContent = t("generate");
+    setBtnLabel(els.generateBtn, t("generate"));
   }
 });
 
