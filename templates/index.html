@@ -6,7 +6,7 @@
 <title>Market Analysis</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+<link rel="stylesheet" href="{{ asset_url('css/style.css') }}" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
   (function () {
@@ -152,6 +152,6 @@
   window.__LOGIN_ENABLED__ = {{ login_enabled | tojson }};
   window.__AUTHENTICATED__ = {{ authenticated | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ asset_url('js/app.js') }}"></script>
 </body>
 </html>

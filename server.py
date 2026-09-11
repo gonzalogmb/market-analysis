@@ -31,6 +31,20 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-secret-key")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
+
+def asset_url(filename):
+    """URL de un archivo estático con ?v=<fecha de modificación>, para que el navegador
+    descargue la versión nueva en cada despliegue en vez de servir una copia en caché."""
+    path = os.path.join(app.static_folder, filename)
+    try:
+        version = int(os.path.getmtime(path))
+    except OSError:
+        version = 0
+    return f"{url_for('static', filename=filename)}?v={version}"
+
+
+app.jinja_env.globals["asset_url"] = asset_url
+
 APP_PASSWORD = os.environ.get("APP_PASSWORD")
 
 RANGES = ["1mo", "3mo", "6mo", "1y", "2y", "5y", "ytd", "max"]

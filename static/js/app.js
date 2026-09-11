@@ -543,19 +543,27 @@ function renderPortfolio(data) {
   }
 
   const palette = getPalette();
-  const { totals, benchmark } = data;
+  const { benchmark } = data;
+
+  // Los totales se recalculan sumando los valores de fila ya redondeados a 2 decimales
+  // (los mismos que se ven en la tabla), en vez de usar el total sin redondear que manda
+  // el servidor — así la tarjeta siempre "cuadra" con lo que se ve al sumar las filas.
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const investedSum = round2(data.holdings.reduce((sum, h) => sum + round2(h.invested), 0));
+  const currentValueSum = round2(data.holdings.reduce((sum, h) => sum + round2(h.current_value), 0));
+  const gainPct = investedSum ? (currentValueSum / investedSum - 1) * 100 : null;
 
   const cards = [
-    { label: t("totalInvested"), value: fmtNum(totals.invested) + " €" },
+    { label: t("totalInvested"), value: fmtNum(investedSum) + " €" },
     {
       label: t("currentValue"),
-      value: fmtNum(totals.current_value) + " €",
-      delta: totals.gain_pct,
-      deltaText: totals.gain_pct != null ? `${totals.gain_pct >= 0 ? "▲" : "▼"} ${fmtNum(Math.abs(totals.gain_pct))} %` : null,
+      value: fmtNum(currentValueSum) + " €",
+      delta: gainPct,
+      deltaText: gainPct != null ? `${gainPct >= 0 ? "▲" : "▼"} ${fmtNum(Math.abs(gainPct))} %` : null,
     },
   ];
-  if (benchmark && totals.gain_pct != null && benchmark.gain_pct != null) {
-    const diff = totals.gain_pct - benchmark.gain_pct;
+  if (benchmark && gainPct != null && benchmark.gain_pct != null) {
+    const diff = gainPct - benchmark.gain_pct;
     cards.push({
       label: t("vsBenchmark"),
       value: `${fmtNum(benchmark.gain_pct)} %`,
