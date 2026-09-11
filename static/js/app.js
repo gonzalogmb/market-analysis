@@ -1,3 +1,9 @@
+// Chart.js usa su propia fuente por defecto (Helvetica/Arial) si no se le indica otra cosa;
+// la igualamos a la del resto de la web para que los gráficos no desentonen.
+if (window.Chart) {
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+}
+
 // Lee la paleta activa desde las custom properties de :root, así los gráficos
 // (Chart.js + heatmap dibujado en JS) siguen al tema claro/oscuro sin duplicar colores.
 function getPalette() {
